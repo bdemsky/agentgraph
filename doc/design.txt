@@ -1,0 +1,70 @@
+ideas:
+Basic building blocks in dataflow language
+Can be dynamic, by dynamic needs to be controlled by code
+
+function
+	block
+
+pipeline
+	sequency of blocks
+
+for_parallel
+	work splitter
+	worker
+	work combiner
+
+if
+	branch decider
+	taken block
+	else block
+
+do while
+	block
+	condition b
+
+call
+-----------------
+-- query construction language
+
+-- response constraint language
+
+-- state
+   file system abstraction
+   
+High level goals
+----------------------
+1. Parallelism is important -- minimizes runtime, and can yield efficiency benefits with batching on local setups
+2. Debuggability is important -- need way to avoid rerunning everything
+3. Performance doesn't matter at python level -- most cost is in LLM
+4. Data size is small
+
+
+Execution engine
+1. Implemented with openai async, runs in its own thread
+2. Have number of concurrent calls via coroutines...
+3. Each block gets offloaded onto async thread...
+
+	  
+Ideas:
+	  
+1.  Use OOOJava SESE regions...call them NestedGraphs... (DONE)
+
+2. Track values of variables between nodes...  Run a node when its dependencies get to 0. (DONE)
+
+3. Need to deal with Agent state...  (TODO)
+
+
+Execution Engine:
+1. Single executor thread
+2. Several coroutines
+3. Each language construct has routines to list results it needs
+4. Preferring earlier tasks (TODO)
+
+Variable objects:
+1. Serve as names/keys for transmitting values.
+2. Variable objects don't directly store anything.
+
+
+Need support for multable state object
+
+Mergable file systems??
