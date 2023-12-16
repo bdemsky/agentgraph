@@ -1,8 +1,7 @@
-import asyncio
+from agentgraph.graph.Action import Action
 from agentgraph.exec.LLMState import LLMState
 
-class Action:
-    """Base class for actions."""
+class PythonAgent(Action):
     def __init__(self):
         pass
 
