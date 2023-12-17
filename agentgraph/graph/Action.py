@@ -6,5 +6,5 @@ class Action:
     def __init__(self):
         pass
 
-    def run(self, state: LLMState, inVars: dict) -> dict:
+    async def run(self, state: LLMState, inVars: dict) -> dict:
         pass
