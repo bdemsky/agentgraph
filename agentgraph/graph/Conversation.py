@@ -2,10 +2,10 @@ class ConversationReader:
     def __init__(self, conv: 'Conversation'):
         self.list = conv.list.copy()
 
-    def size(self):
+    def size(self) -> int:
         return len(self.list)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> str:
         return self.list[index]
           
 class Conversation:
@@ -19,11 +19,11 @@ class Conversation:
         for l in range(n):
             self.list.pop()
 
-    def push(self, text):
+    def push(self, text: str):
         self.list.append(text)
 
-    def size(self):
+    def size(self) -> int:
         return len(self.list)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index) -> str:
         return self.list[index]

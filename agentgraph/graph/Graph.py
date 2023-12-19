@@ -1,4 +1,6 @@
 from agentgraph.graph.BoolVar import BoolVar
+from agentgraph.graph.Var import Var
+from agentgraph.graph.Conversation import Conversation
 
 class GraphNode:
     """Base Node For Nested CFG Representation of Program"""
@@ -22,11 +24,25 @@ class GraphNested(GraphNode):
     def getStart() -> GraphNode:
         return self.start
 
-class GraphAction(GraphNode):
-    """Run some action.  This can be either an LLM Agent or a Python Agent."""
-    def __init__(self, action):
+class GraphLLMAgent(GraphNode):
+    """Run some action.  This is a LLM Agent."""
+    def __init__(self, conversation: Conversation, inputs: dict, snapshots: dict, format_func, prompt_file: str, output: Var):
         super().__init__()
-        self.action = action
+        self.conversation = conversation
+        self.inputs = inputs
+        self.snapshots = snapshots
+        self.format_func = format_func
+        self.prompt_file = prompt_file
+        self.output = output
+
+class GraphPythonAgent(GraphNode):
+    """Run some action.  This is a Python Agent."""
+    def __init__(self, inputs: dict, snapshots: dict, python_func, output: Var):
+        super().__init__()
+        self.inputs = inputs
+        self.snapshots = snapshots
+        self.python_func = python_func
+        self.output = output
 
 class GraphNodeNop(GraphNode):
     """Create a Nop Node."""
@@ -50,8 +66,16 @@ class GraphPair:
     def __init__(self, start: GraphNode, end: GraphNode):
         self.start = start
         self.end = end
-        
 
+
+def createLLMAgent(convo:Conversation, inputs: dict, snapshots: dict, format_func, prompt_file: str, output: Var) -> GraphPair:
+    llmagent = GraphLLMAgent(convo, inputs, snapshots, format_func, prompt_file, output)
+    return GraphPair(llmagent, llmagent)
+
+def createPythonAgent(inputs: dict, snapshots: dict, python_func, output: Var) -> GraphPair:
+    pythonagent = GraphPythonAgent(inputs, snapshots, python_func, output)
+    return GraphPair(pythonagent, pythonagent)
+    
 def createSequence(list) -> GraphPair:
     """This creates a sequency of GraphNodes"""
     start = list[0].start
