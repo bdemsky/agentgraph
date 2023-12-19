@@ -1,17 +1,16 @@
 class ConversationReader:
     def __init__(self, conv: 'Conversation'):
-        self.__conv = __conv
+        self.list = conv.list.copy()
 
     def size(self):
-        return self.__conv.size()
+        return len(self.list)
 
     def __getitem__(self, index):
-        return self.__conv[index]
+        return self.list[index]
           
 class Conversation:
     def __init__(self):
         self.list = []
-        pass
 
     def getReader(self) -> ConversationReader:
         return ConversationReader(self)
