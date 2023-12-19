@@ -1,3 +1,13 @@
+Todo items:
+     Speculation....
+     State mutation/tracking
+     State data structures
+     Early enabling variables from GraphExit Node...
+     Debugging support
+     Agent specification...
+
+
+
 ideas:
 Basic building blocks in dataflow language
 Can be dynamic, by dynamic needs to be controlled by code

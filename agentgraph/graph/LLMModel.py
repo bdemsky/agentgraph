@@ -3,9 +3,9 @@ import asyncio
 
 class LLMModel:
     def __init__(self, endpoint, apikey, smallModel, largeModel, threshold):
-        self.client = AsyncAzureOpenAI(azure_endpoint="https://demskygroupgpt4.openai.azure.com/",
+        self.client = AsyncAzureOpenAI(azure_endpoint=endpoint,
                                        api_version="2023-05-15",
-                                       api_key=os.getenv("OPENAI_API_KEY"))
+                                       api_key=apikey)
         self.timeout = 60
         self.smallModel = smallModel
         self.switchThreshold = threshold
