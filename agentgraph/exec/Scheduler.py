@@ -50,7 +50,65 @@ class ScheduleNode:
         """Run the node"""
         self.outVarMap = await self.node.execute(self.getInVarMap())
 
+class ScoreBoardNode:
+    def __init__(self, isRead: bool):
+        self.isReader = isReader
+        self.waiters = {}
+        self.next = None
         
+    def isReader(self) -> bool:
+        return self.isReader
+
+    def setNext(self, next: 'ScoreBoardNode'):
+        self.next = next
+
+    def getNext(self) -> 'ScoreBoardNode':
+        return self.next
+        
+    def addWaiter(self, waiter):
+        self.waiters.add(waiter)
+
+    def getWaiters() -> list:
+        return self.waiters
+
+class ScoreBoard:
+    """ScoreBoard object to track object dependencies between agents."""
+    def __init__(self):
+        self.accesses = dict()
+
+    def addReader(self, object, node: ScheduleNode) -> bool:
+        if object in self.accesses:
+            pair = self.accesses[object]
+            start = pair[0]
+            end = pair[1]
+        else:
+            return True
+
+        if not end.isReader():
+            scoreboardnode = ScoreBoardNode(true)
+            scoreboardnode.addWaiter(node)
+            end.setNext(scoreboardnode)
+            end = scoreboardnode
+            self.accesses[object] = (start, end)
+        else:
+            end.addWaiter(node)
+        return False
+            
+    def addWriter(self, object, node: ScheduleNode) -> bool:
+        scoreboardnode = ScoreBoardNode(false)
+        scoreboardnode.addWaiter(node)
+        
+        if object in self.accesses:
+            pair = self.accesses[object]
+            pair[1].setNext(scoreboardnode)
+            self.accesses[object] = (pair[0], scoreboardnode)
+            return False
+        else:
+            self.accesses[object] = (scoreboardnode, scoreboardnode)
+            return True
+
+
+
 class Scheduler:
     """Scheduler class.  This does all of the scheduling for a given Nested Graph."""
     def __init__(self, scope: GraphNested, varMap: dict, parent: 'Scheduler', engine: Engine):
@@ -79,6 +137,7 @@ class Scheduler:
                 self.varMap[var] = scheduleNode
             if node == self.scope:
                 return
+            #Compute next node to scan
             if isinstance(node, GraphNodeBranch):
                 # If we have a branchnode, we have to see if we know
                 # the direction.

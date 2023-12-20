@@ -1,10 +1,16 @@
 Todo items:
-     Speculation....
-     State mutation/tracking
-     State data structures
-     Early enabling variables from GraphExit Node...
-     Debugging support
-     Agent specification...
+1. Finish scheduler for LLMAgent & PythonAgent
+2. Track conflicting accesses to heap objects (state mutation/tracking)
+3. Query generation functions
+4. Build example
+5. Add debugging support:
+  a. Strict debugging support, memoize queries, don't generate query if we have it
+  b. Support outputting problematic chat history as python program for debugging
+  
+
+6. Early enabling variables from GraphExit Node
+
+7. 
 
 
 

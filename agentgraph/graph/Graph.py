@@ -1,4 +1,5 @@
 from agentgraph.graph.BoolVar import BoolVar
+from agentgraph.graph.LLMModel import LLMModel
 from agentgraph.graph.Var import Var
 from agentgraph.graph.Conversation import Conversation
 
@@ -15,7 +16,13 @@ class GraphNode:
 
     def writesVars() -> list:
         return []
-        
+
+    def getRefs() -> list:
+        return []
+
+    def getSnapshotRefs() -> list:
+        return []
+    
 class GraphNested(GraphNode):
     """Nested CFG Node.  Used for control flow constructs such as If-Then-Else or a Loop."""
     def __init__(self, _start: GraphNode):
@@ -26,23 +33,50 @@ class GraphNested(GraphNode):
 
 class GraphLLMAgent(GraphNode):
     """Run some action.  This is a LLM Agent."""
-    def __init__(self, conversation: Conversation, inputs: dict, snapshots: dict, format_func, prompt_file: str, output: Var):
+    def __init__(self, model: LLMModel, conversation: Conversation, formatFunc, promptFile: str, outVar: Var, inVars: dict, refs: dict, snapshotRefs: dict):
         super().__init__()
+        self.model = model
         self.conversation = conversation
-        self.inputs = inputs
-        self.snapshots = snapshots
-        self.format_func = format_func
-        self.prompt_file = prompt_file
-        self.output = output
+        self.formatFunc = formatFunc
+        self.promptFile = promptFile
+        self.outVar = outVar
+        self.inVars = inVars if inVars != None else {}
+        self.refs = refs if refs != None else {}
+        self.snapshotRefs = snapshotRefs if snapshotRefs != None else {}
 
+    def readsVar() -> list:
+        return self.inVars.values()
+        
+    def writesVar() -> list:
+        return [self.outVar]
+
+    def getRefs() -> list:
+        return self.refs.values()
+
+    def getSnapshotRefs() -> list:
+        return self.snapshotRefs.values()
+    
 class GraphPythonAgent(GraphNode):
     """Run some action.  This is a Python Agent."""
-    def __init__(self, inputs: dict, snapshots: dict, python_func, output: Var):
+    def __init__(self, pythonFunc, inVars: dict, outVars: dict, refs: dict, snapshotRefs: dict):
         super().__init__()
-        self.inputs = inputs
-        self.snapshots = snapshots
-        self.python_func = python_func
-        self.output = output
+        self.pythonFunc = pythonFunc
+        self.inVars = inVars if inVars != None else {}
+        self.outVars = outVars if outVars != None else {}
+        self.refs = refs if refs != None else {}
+        self.snapshotRefs = snapshotRefs if snapshotRefs != None else {}
+
+    def readsVar() -> list:
+        return self.inVars.values()
+        
+    def writesVar() -> list:
+        return self.outVars.values()
+
+    def getRefs() -> list:
+        return self.refs.values()
+
+    def getSnapshotRefs() -> list:
+        return self.snapshotRefs.values()
 
 class GraphNodeNop(GraphNode):
     """Create a Nop Node."""
@@ -68,13 +102,13 @@ class GraphPair:
         self.end = end
 
 
-def createLLMAgent(convo:Conversation, inputs: dict, snapshots: dict, format_func, prompt_file: str, output: Var) -> GraphPair:
-    llmagent = GraphLLMAgent(convo, inputs, snapshots, format_func, prompt_file, output)
-    return GraphPair(llmagent, llmagent)
+def createLLMAgent(model: LLMModel, conversation: Conversation, formatFunc, promptFile: str, outVar: Var, inVars: dict = None, refs: dict = None, snapshotRefs: dict = None) -> GraphPair:
+    llmAgent = GraphLLMAgent(model, conversation, formatFunc, promptFile, outVar, inVars, refs, snapshotRefs)
+    return GraphPair(llmAgent, llmAgent)
 
-def createPythonAgent(inputs: dict, snapshots: dict, python_func, output: Var) -> GraphPair:
-    pythonagent = GraphPythonAgent(inputs, snapshots, python_func, output)
-    return GraphPair(pythonagent, pythonagent)
+def createPythonAgent(pythonFunc, inVars: dict = None, outVars: dict = None, refs: dict = None, snapshotRefs: dict = None) -> GraphPair:
+    pythonAgent = GraphPythonAgent(pythonFunc, inVars, outVars, refs, snapshotRefs)
+    return GraphPair(pythonAgent, pythonAgent)
     
 def createSequence(list) -> GraphPair:
     """This creates a sequency of GraphNodes"""
