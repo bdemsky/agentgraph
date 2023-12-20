@@ -11,16 +11,10 @@ class GraphNode:
     def setNext(self, index: int, n: 'GraphNode'):
         self.next[index] = n
 
-    def readsVars() -> list:
+    def getReadVars() -> list:
         return []
 
-    def writesVars() -> list:
-        return []
-
-    def getRefs() -> list:
-        return []
-
-    def getSnapshotRefs() -> list:
+    def getWriteVars() -> list:
         return []
     
 class GraphNested(GraphNode):
@@ -28,12 +22,29 @@ class GraphNested(GraphNode):
     def __init__(self, _start: GraphNode):
         super().__init__()
         self.start = _start
+        self.readVars = None
+        self.writeVars = None
+        self.refs = None
+        self.snapshotRefs = None
+
     def getStart() -> GraphNode:
         return self.start
 
+    def getReadVars() -> list:
+        return self.readVars
+        
+    def getWriteVars() -> list:
+        return self.writeVars
+    
+    def setReadVars(readVars: list):
+        self.readVars = readVars
+        
+    def setWriteVars(writeVars: list):
+        self.writeVars = writeVars
+    
 class GraphLLMAgent(GraphNode):
     """Run some action.  This is a LLM Agent."""
-    def __init__(self, model: LLMModel, conversation: Conversation, formatFunc, promptFile: str, outVar: Var, inVars: dict, refs: dict, snapshotRefs: dict):
+    def __init__(self, model: LLMModel, conversation: Conversation, formatFunc, promptFile: str, outVar: Var, inVars: dict):
         super().__init__()
         self.model = model
         self.conversation = conversation
@@ -41,20 +52,12 @@ class GraphLLMAgent(GraphNode):
         self.promptFile = promptFile
         self.outVar = outVar
         self.inVars = inVars if inVars != None else {}
-        self.refs = refs if refs != None else {}
-        self.snapshotRefs = snapshotRefs if snapshotRefs != None else {}
 
-    def readsVar() -> list:
+    def getReadVars() -> list:
         return self.inVars.values()
         
-    def writesVar() -> list:
+    def getWriteVars() -> list:
         return [self.outVar]
-
-    def getRefs() -> list:
-        return self.refs.values()
-
-    def getSnapshotRefs() -> list:
-        return self.snapshotRefs.values()
     
 class GraphPythonAgent(GraphNode):
     """Run some action.  This is a Python Agent."""
@@ -66,17 +69,11 @@ class GraphPythonAgent(GraphNode):
         self.refs = refs if refs != None else {}
         self.snapshotRefs = snapshotRefs if snapshotRefs != None else {}
 
-    def readsVar() -> list:
+    def getReadVars() -> list:
         return self.inVars.values()
         
-    def writesVar() -> list:
+    def getWriteVars() -> list:
         return self.outVars.values()
-
-    def getRefs() -> list:
-        return self.refs.values()
-
-    def getSnapshotRefs() -> list:
-        return self.snapshotRefs.values()
 
 class GraphNodeNop(GraphNode):
     """Create a Nop Node."""
@@ -92,7 +89,7 @@ class GraphNodeBranch(GraphNode):
     def getBranchVar(self) -> BoolVar:
         return self.branchVar
 
-    def readsVar() -> list:
+    def getReadVars() -> list:
         return [self.branchVar]
     
 class GraphPair:
@@ -137,3 +134,4 @@ def createIfElse(condvar: BoolVar, thenN: GraphPair, elseN: GraphPair) -> GraphP
     thenN.last.setNext(0, graph)
     elseN.last.setNext(0, graph)
     return GraphPair(graph, graph)
+

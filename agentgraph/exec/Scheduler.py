@@ -120,8 +120,8 @@ class Scheduler:
     def scan(self, node: GraphNode):
         while True:
             depCount = 0
-            inVars = node.readsVars()
-            outVars = node.writesVars()
+            inVars = node.getReadVars()
+            outVars = node.getWriteVars()
             scheduleNode = ScheduleNode(node)
             # Compute our set of dependencies
             for var in inVars:
