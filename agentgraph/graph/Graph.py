@@ -121,17 +121,56 @@ def createDoWhile(compute: GraphPair, branchvar: BoolVar) -> GraphPair:
     branch = GraphNodeBranch(branchvar)
     graph = GraphNested(compute.start)
     compute.end.setNext(0, branch)
+
+    #Analyze read/write vars while we still have a linear structure
+    readSet, writeSet = analyzeLinear(compute.start, branch)
+
+    #Finish graph
     branch.setNext(1, compute.start)
     branch.setNext(0, graph)
+
+    #Save variable read/write results
+    graph.setReadVars(readSetThen)
+    graph.setWriteVars(writeSetThen)
+    
     return GraphPair(graph, graph)
 
 def createIfElse(condvar: BoolVar, thenN: GraphPair, elseN: GraphPair) -> GraphPair:
     """This creates an if then else block."""
+    # Analyze variable reads/writes
+    readSetThen, writeSetThen = analyzeLinear(thenN[0], thenN[1])
+    readSetElse, writeSetElse = analyzeLinear(elseN[0], elseN[1])
     branch = GraphNodeBranch(condvar)
     graph = GraphNested(branch)
     branch.setNext(0, elseN.start)
     branch.setNext(1, thenN.start)
     thenN.last.setNext(0, graph)
     elseN.last.setNext(0, graph)
+
+    #Combine variable reads/writes
+    readSetThen.update(readSetElse)
+    writeSetThen.update(writeSetElse)
+    readSetThen.add(condvar)
+
+    #Save variable read/write results
+    graph.setReadVars(readSetThen)
+    graph.setWriteVars(writeSetThen)
+    
     return GraphPair(graph, graph)
 
+def analyzeLinear(start: GraphNode, end: GraphNode) -> tuple[set, set]:
+    """ This function analyzes reads/writes of linear chains"""
+    node = start
+    list = []
+    while node != None:
+        list.append(node)
+        node = node.getNext(0)
+    readSet = {}
+    writeSet = {}
+    for i in range(len(list) - 1, -1, -1):
+        n = list[i]
+        writeSet.update(n.getWriteSet())
+        readSet.difference_update(n.getWriteSet())
+        readSet.update(n.getReadSet())
+        
+    return (readSet, writeSet)
