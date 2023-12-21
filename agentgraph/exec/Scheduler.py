@@ -5,6 +5,7 @@ from agentgraph.graph.Var import Var
 
 
 class ScheduleNode:
+    """Schedule node to track dependences for a tasks."""
     def __init__(self, node: GraphNode, depCount: int, varMap: dict):
         self.node = node
         self.waitMap = dict()
@@ -51,6 +52,7 @@ class ScheduleNode:
         self.outVarMap = await self.node.execute(self.getInVarMap())
 
 class ScoreBoardNode:
+    """ScoreBoard node to track heap dependences."""
     def __init__(self, isRead: bool):
         self.isReader = isReader
         self.waiters = {}
@@ -77,6 +79,7 @@ class ScoreBoard:
         self.accesses = dict()
 
     def addReader(self, object, node: ScheduleNode) -> bool:
+        """Add task node with read dependence on object."""
         if object in self.accesses:
             pair = self.accesses[object]
             start = pair[0]
@@ -95,6 +98,7 @@ class ScoreBoard:
         return False
             
     def addWriter(self, object, node: ScheduleNode) -> bool:
+        """Add task node with write dependence on object."""
         scoreboardnode = ScoreBoardNode(false)
         scoreboardnode.addWaiter(node)
         
@@ -108,6 +112,37 @@ class ScoreBoard:
             return True
 
 
+    def removeWaiter(self, object, node: ScheduleNode, scheduler: 'Scheduler') -> bool:
+        """Removes a waiting schedulenode from the list.  Returns
+        false if that node had already cleared this queue and true if
+        it was still waiting."""
+        first, last = self.accesses[object]
+        if node in first.getWaiters():
+            first.getWaiters().remove(node)
+            if len(first).getWaiters() == 0:
+                if first == last:
+                    self.accesses[object] = None
+                else:
+                    self.accesses[object] = (first.getNext(), last)
+                    #Update scheduler
+                    for nextnode in first.getNext().getWaiters():
+                        scheduler.decDepCount(nextnode)
+            return False
+        else:
+            entry = first.getNext()
+            prev = first
+            while entry != None:
+                if node in entry.getWaiters():
+                    entry.getWaiters().remove(node)
+                    if len(entry.getWaiters()) == 0:
+                        prev.setNext(entry.getNext())
+                        #See if we eliminated tail and thus need to update queue
+                        if last == entry:
+                            self.accesses[object] = (first, prev)
+                    break
+                prev = entry
+                entry = entry.getNext()
+        return True
 
 class Scheduler:
     """Scheduler class.  This does all of the scheduling for a given Nested Graph."""
@@ -118,6 +153,7 @@ class Scheduler:
         self.parent = parent
         
     def scan(self, node: GraphNode):
+        """Scans nodes in graph for scheduling purposes."""
         while True:
             depCount = 0
             inVars = node.getReadVars()
@@ -154,20 +190,26 @@ class Scheduler:
             set = waiters[var]
             for n in set:
                 n.setInVarVal(var, val)
-                if (n.decDepCount()):
-                    # ready to run this one now
-                    startTask(n)
-
+                decDepCount(n)
+                    
+    def decDepCount(self, node: ScheduleNode):
+        """Decrement dependence count."""
+        if node.decDepCount():
+            #Ready to run this one now
+            startTask(node)
+                    
     def startTask(self, node: ScheduleNode):
+        """Starts task."""
         if isinstance(node, GraphNodeBranch):
+            #Process branch task
             node = node.getNext(node.varMap[node.getGraphNode().getBranchVar()])
             self.scan(node)
         elif node == self.scope:
+            #Dependences are resolve for final node
             if self.parent != None:
                 self.parent.completed(node)
             else:
                 pass
-                #TODO:
         elif isinstance(node, GraphNested):
             # Need start new Scheduler
             child = Scheduler(node, node.getInVarMap(), self, self.engine)
