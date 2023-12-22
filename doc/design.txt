@@ -1,3 +1,10 @@
+1. Make assignments to new mutable objects only (can't copy references
+to mutable objects).  Only one variable allowed to reference mutable
+object.
+
+2. 
+
+
 Todo items:
 1. Finish scheduler for LLMAgent & PythonAgent
 2. Track conflicting accesses to heap objects (state mutation/tracking)

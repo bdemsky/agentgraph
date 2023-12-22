@@ -8,3 +8,9 @@ class SnapshotVar(Var):
 
     def getVar() -> MutVar:
         return self.var
+
+    def isMutable() -> bool:
+        return True
+
+    def isRead() -> bool:
+        return True

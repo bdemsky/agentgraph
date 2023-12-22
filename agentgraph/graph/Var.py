@@ -5,4 +5,8 @@ class Var:
     def getName(self) -> str:
         return self.name
 
-    
+    def isMutable(self) -> bool:
+        return False
+
+    def isRead(self) -> bool:
+        return False
