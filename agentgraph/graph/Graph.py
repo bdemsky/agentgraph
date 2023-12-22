@@ -8,10 +8,13 @@ class GraphNode:
     """Base Node For Nested CFG Representation of Program"""
     
     def __init__(self):
-        self.next = []
+        self.next = [None]
 
     def setNext(self, index: int, n: 'GraphNode'):
         self.next[index] = n
+        
+    def getNext(self, index: int) -> 'GraphNode':
+        return self.next[index]
 
     def getReadVars(self) -> list:
         return []
@@ -134,6 +137,7 @@ class GraphNodeBranch(GraphNode):
     
     def __init__(self, branchVar):
         super().__init__()
+        self.next.append(None)
         self.branchVar = branchVar
         
     def getBranchVar(self) -> BoolVar:
@@ -203,8 +207,8 @@ def createIfElse(condvar: BoolVar, thenN: GraphPair, elseN: GraphPair) -> GraphP
     """This creates an if then else block."""
     
     # Analyze variable reads/writes
-    readSetThen, writeSetThen = analyzeLinear(thenN[0], thenN[1])
-    readSetElse, writeSetElse = analyzeLinear(elseN[0], elseN[1])
+    readSetThen, writeSetThen = analyzeLinear(thenN.start, thenN.end)
+    readSetElse, writeSetElse = analyzeLinear(elseN.start, elseN.end)
     branch = GraphNodeBranch(condvar)
     graph = GraphNested(branch)
     branch.setNext(0, elseN.start)
@@ -223,6 +227,16 @@ def createIfElse(condvar: BoolVar, thenN: GraphPair, elseN: GraphPair) -> GraphP
     
     return GraphPair(graph, graph)
 
+def createRunnable(pair: GraphPair) -> GraphNested:
+    """Encapsulates a GraphPair to make it runnable"""
+    readSet, writeSet = analyzeLinear(pair.start, pair.end)
+    graph = GraphNested(pair.start)
+    pair.end.setNext(0, graph)
+
+    graph.setReadVars(readSet)
+    graph.setWriteVars(writeSet)
+    return graph
+
 def analyzeLinear(start: GraphNode, end: GraphNode) -> tuple[set, set]:
     """ This function analyzes reads/writes of linear chains"""
     
@@ -231,12 +245,12 @@ def analyzeLinear(start: GraphNode, end: GraphNode) -> tuple[set, set]:
     while node != None:
         list.append(node)
         node = node.getNext(0)
-    readSet = {}
-    writeSet = {}
+    readSet = set()
+    writeSet = set()
     for i in range(len(list) - 1, -1, -1):
         n = list[i]
-        writeSet.update(n.getWriteSet())
-        readSet.difference_update(n.getWriteSet())
-        readSet.update(n.getReadSet())
+        writeSet.update(n.getWriteVars())
+        readSet.difference_update(n.getWriteVars())
+        readSet.update(n.getReadVars())
         
     return (readSet, writeSet)

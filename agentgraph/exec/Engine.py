@@ -1,6 +1,7 @@
 import asyncio
 import janus
 from threading import Thread
+from agentgraph.graph.Graph import GraphPair, GraphNested
 
 class Engine:
     def __init__(self, concurrency: int = 20):
@@ -28,6 +29,11 @@ class Engine:
             await scheduleNode.run()
             await scheduler.completed(scheduleNode)
             self.queue.async_q.task_done()
+
+    def runGraph(self, graph: GraphNested, inVars: dict):
+        from agentgraph.exec.Scheduler import Scheduler
+        scheduler = Scheduler(graph, inVars, None, self)
+        return
             
     def queueItem(self, node: 'agentgraph.graph.ScheduleNode', scheduler):
         self.queue.sync_q.put((node, scheduler))
