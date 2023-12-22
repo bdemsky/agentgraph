@@ -115,7 +115,6 @@ class GraphPythonAgent(GraphNode):
         # Next, actually call the formatFunc to generate the prompt
         omap = await self.pythonFunc(inMap)
 
-
         # Construct outMap (Var -> Object) from outVars (name -> Var)
         # and omap (name -> Value)
         
@@ -123,7 +122,7 @@ class GraphPythonAgent(GraphNode):
         if self.outVars != None:
             for name, var in self.outVars:
                 outMap[var] = omap[name]
-            
+
         return outMap
     
 class GraphNodeNop(GraphNode):

@@ -27,16 +27,17 @@ class Engine:
                 break
             scheduleNode, scheduler = item
             await scheduleNode.run()
-            await scheduler.completed(scheduleNode)
+            scheduler.completed(scheduleNode)
             self.queue.async_q.task_done()
 
     def runGraph(self, graph: GraphNested, inVars: dict):
         from agentgraph.exec.Scheduler import Scheduler
         scheduler = Scheduler(graph, inVars, None, self)
+        asyncio.run_coroutine_threadsafe(scheduler.scan(graph.start), self.loop)
         return
-            
+
     def queueItem(self, node: 'agentgraph.graph.ScheduleNode', scheduler):
-        self.queue.sync_q.put((node, scheduler))
+        self.queue.async_q.put_nowait((node, scheduler))
 
     def shutdown(self):
         for i in range(self.concurrency):
@@ -44,7 +45,7 @@ class Engine:
         self.queue.sync_q.join()
         self.loop.call_soon_threadsafe(self.loop.stop)
         self.event_loop_thread.join()
-        
+
 async def create_queue() -> janus.Queue:
     queue = janus.Queue()
     return queue

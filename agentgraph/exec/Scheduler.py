@@ -1,6 +1,6 @@
 import asyncio
 from agentgraph.exec.Engine import Engine
-from agentgraph.graph.Graph import GraphNested, GraphNode
+from agentgraph.graph.Graph import GraphNested, GraphNode, GraphNodeBranch
 from agentgraph.graph.Var import Var
 
 
@@ -80,10 +80,8 @@ class ScheduleNode:
         
     async def run(self):
         """Run the node"""
-        
         self.outVarMap = await self.node.execute(self.getInVarMap())
-
-
+        
 class ScoreBoardNode:
     """ScoreBoard linked list node to track heap dependences."""
 
@@ -184,7 +182,7 @@ class ScoreBoard:
         """Removes a waiting schedulenode from the list.  Returns
         false if that node had already cleared this queue and true if
         it was still waiting."""
-        
+        print("QQ")
         first, last = self.accesses[object]
         if node in first.getWaiters():
             first.getWaiters().remove(node)
@@ -225,7 +223,7 @@ class Scheduler:
         self.count = 0
         self.scoreboard = ScoreBoard()
         
-    def scan(self, node: GraphNode):
+    async def scan(self, node: GraphNode):
         """Scans nodes in graph for scheduling purposes."""
         
         while True:
@@ -250,6 +248,9 @@ class Scheduler:
             # Save our dependence count.
             scheduleNode.setDepCount(depCount)
 
+            if (depCount == 0):
+                self.startTask(scheduleNode)
+            
             # Update variable map with any of our dependencies
             for var in outVars:
                 self.varMap[var] = scheduleNode
@@ -290,7 +291,6 @@ class Scheduler:
         
     def completed(self, node: ScheduleNode):
         """We call this when a task has completed."""
-        
         # Get list of tasks waiting on variables
         waiters = node.getWaiters()
         for var in waiters:
@@ -309,14 +309,13 @@ class Scheduler:
                 else:
                     #No heap dependence, so decrement count
                     decDepCount(n)
-                
         #Release our heap dependences
-        inVarValMap = node.getInVarVals()
+        inVarValMap = node.getInVarMap()
         for var, val in inVarValMap:
             if var.isMutable():
                 self.scoreboard.removeWaiter(val, node, self)
-            
-        
+
+                
     def decDepCount(self, node: ScheduleNode):
         """Decrement dependence count.  Starts task if dependence
         count gets to zero."""
@@ -325,23 +324,24 @@ class Scheduler:
             #Ready to run this one now
             startTask(node)
                     
-    def startTask(self, node: ScheduleNode):
+    def startTask(self, scheduleNode: ScheduleNode):
         """Starts task."""
+        graphnode = scheduleNode.getGraphNode()
         
-        if isinstance(node, GraphNodeBranch):
+        if isinstance(graphnode, GraphNodeBranch):
             #Process branch task
-            node = node.getNext(node.varMap[node.getGraphNode().getBranchVar()])
-            self.scan(node)
-        elif node == self.scope:
+            graphnode = graphnode.getNext(scheduleNode.varMap[graphnode.getBranchVar()])
+            self.scan(graphnode)
+        elif graphnode == self.scope:
             #Dependences are resolve for final node
             if self.parent != None:
-                self.parent.completed(node)
+                self.parent.completed(scheduleNode)
             else:
-                pass
-        elif isinstance(node, GraphNested):
+                print("Running GN")
+        elif isinstance(graphnode, GraphNested):
             # Need start new Scheduler
-            child = Scheduler(node, node.getInVarMap(), self, self.engine)
-            child.scan(node.getStart())
+            child = Scheduler(graphnode, scheduleNode.getInVarMap(), self, self.engine)
+            child.scan(graphnode.getStart())
         else:
             #Schedule the job
-            self.engine.queueItem(node)
+            self.engine.queueItem(scheduleNode, self)
