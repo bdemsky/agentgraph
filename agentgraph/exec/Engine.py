@@ -33,13 +33,14 @@ class Engine:
     def runGraph(self, graph: GraphNested, inVars: dict):
         from agentgraph.exec.Scheduler import Scheduler
         scheduler = Scheduler(graph, inVars, None, self)
-        asyncio.run_coroutine_threadsafe(scheduler.scan(graph.start), self.loop)
+        asyncio.run_coroutine_threadsafe(scheduler.scan(graph.start), self.loop).result()
         return
 
     def queueItem(self, node: 'agentgraph.graph.ScheduleNode', scheduler):
         self.queue.async_q.put_nowait((node, scheduler))
 
     def shutdown(self):
+        self.queue.sync_q.join()
         for i in range(self.concurrency):
             self.queue.sync_q.put(None)
         self.queue.sync_q.join()

@@ -152,6 +152,9 @@ class GraphPair:
         self.start = start
         self.end = end
 
+    def __or__(a: 'GraphPair', b: 'GraphPair') -> 'GraphPair':
+        return createSequence([a, b])
+    
 def checkInVars(inVars: dict):
     if inVars == None:
         return

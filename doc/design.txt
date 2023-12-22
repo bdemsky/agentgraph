@@ -1,25 +1,35 @@
+New syntax rules...
+
 1. Make assignments to new mutable objects only (can't copy references
 to mutable objects).  Only one variable allowed to reference mutable
 object.
 
-2. 
-
-
-Todo items:
-1. Finish scheduler for LLMAgent & PythonAgent
-2. Track conflicting accesses to heap objects (state mutation/tracking)
-3. Query generation functions
-4. Build example
-5. Add debugging support:
+Short Term Todo Items:
+1. Code for assembling messages
+2. Code to snapshot variables automatically
+3. Eliminate maps and just use variable names
+4. Early enabling variables from GraphExit Node
+5. Futures for getting results out of computation
+6. Build example
+7. Add debugging support:
   a. Strict debugging support, memoize queries, don't generate query if we have it
   b. Support outputting problematic chat history as python program for debugging
-  
 
-6. Early enabling variables from GraphExit Node
+Long Term Todo Items:
+1. Support for RAG
+2. Build benchmarks
+3. Revisit mutable variable assignment restrictions
 
-7. 
+Message support:
+1. Need way to summarize Conversation
+2. Need way to interleave two conversations
+3. Need way to prepend/append to conversation
+4. Need way to work in prompts...
+5. Should construct function to do this...
+6. Need way to construct system message...
+7. Fix Conversation binding...should probably be via variables...
 
-
+Idea...What if prompts & variables all subclassed messages...messages then allowd basic combination operations...  pass in message object, call eval operator on it...could even generate input variables automatically
 
 ideas:
 Basic building blocks in dataflow language
