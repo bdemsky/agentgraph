@@ -301,14 +301,14 @@ class Scheduler:
             for n in wlist:
                 #Forward value
                 n.setInVarVal(var, val)
-                if var.isMutable:
+                if var.isMutable():
                     #If variable is mutable, register the heap dependence
                     if handleReference(n, var, val) == 0:
                         #Only do decrement if we didn't just transfer the count to a heap dependence
                         decDepCount(n)
                 else:
                     #No heap dependence, so decrement count
-                    decDepCount(n)`
+                    decDepCount(n)
                 
         #Release our heap dependences
         inVarValMap = node.getInVarVals()

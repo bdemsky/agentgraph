@@ -1,5 +1,5 @@
-import openai
 import asyncio
+from openai import AsyncAzureOpenAI
 
 class LLMModel:
     def __init__(self, endpoint, apikey, smallModel, largeModel, threshold):
