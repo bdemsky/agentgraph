@@ -12,7 +12,7 @@ class Conversation:
     def __init__(self):
         self.list = []
 
-    def getReader(self) -> ConversationReader:
+    def snapshot(self) -> ConversationReader:
         return ConversationReader(self)
         
     def pop(self, n: int):

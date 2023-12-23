@@ -1,10 +1,18 @@
 from jinja2 import Environment, FileSystemLoader
+from agentgraph.graph.MsgSeq import MsgSeq
 
+class Prompt(MsgSeq):
+    def __init__(self, prompts: 'Prompts', name: str, vars: set):
+        super().__init__()
+        self.prompts = prompts
+        self.name = name
+        self.vars = vars
+        
 class Prompts:
     def __init__(self, path: str):
         self.path = path
 
-    def createPrompt(self, prompt_name: str, data: dict) -> str:
+    def createPrompt(self, prompt_name: str, vars: set) -> str:
         if data == None:
             data = dict()
         

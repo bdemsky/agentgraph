@@ -29,7 +29,7 @@ class FileStore:
     def __init__(self):
         self.filestore = dict()
 
-    def getReadFileStore(self):
+    def snapshot(self):
         return ReadFileStore(self)
         
     def __contains__(self, key: str) -> bool:
