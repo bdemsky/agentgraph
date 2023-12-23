@@ -216,6 +216,17 @@ class Scheduler:
     """Scheduler class.  This does all of the scheduling for a given Nested Graph."""
     
     def __init__(self, scope: GraphNested, varMap: dict, parent: 'Scheduler', engine: Engine):
+
+        """Object initializer for a new Scheduler:
+        scope - the scope we are scheduling
+
+        varMap - a map of Vars to values
+
+        parent - the Scheduler for our parent scope or None
+
+        engine - the execution Engine we use
+        """
+
         self.scope = scope
         self.varMap = varMap
         self.engine = engine
@@ -291,6 +302,7 @@ class Scheduler:
         
     def completed(self, node: ScheduleNode):
         """We call this when a task has completed."""
+
         # Get list of tasks waiting on variables
         waiters = node.getWaiters()
         for var in waiters:

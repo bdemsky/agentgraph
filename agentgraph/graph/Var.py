@@ -13,3 +13,6 @@ class Var(MsgSeq):
 
     def isRead(self) -> bool:
         return False
+
+    def getVars(self) -> set:
+        return { self }
