@@ -94,7 +94,19 @@ class MsgInterleave(MsgSeq):
         
     def isExchange(self) -> bool:
         return True
-        
+
+    def exec(self, varsMap: dict):
+        userseq = self.user.exec(dict)
+        assistantseq = self.assistant.exec(dict)
+        seq = []
+        for i in range(userseq.size()):
+            message = userseq.get(i)
+            seq.append({"role": "user", "content": message})
+            if i < assistantseq.size():
+                message = assistantseq.get(i)
+                seq.append({"role": "assistant", "content": message})
+        return seq
+                
 class MsgSystem(MsgSeq):
     def __init__(self, system: MsgSeq, conv: MsgSeq):
         super().__init__()
@@ -106,3 +118,9 @@ class MsgSystem(MsgSeq):
         
     def isExchange(self) -> bool:
         return True
+
+    def exec(self, varsMap: dict):
+        systemmsg = self.system.exec(dict)
+        conv= self.conv.exec(dict)
+        sys = [{"role": "system", "content": systemmsg}]
+        return sys + conv

@@ -16,7 +16,13 @@ class Conversation:
             
     def snapshot(self) -> ConversationReader:
         return ConversationReader(self)
-        
+
+    def size(self) -> int:
+        return len(self.list)
+
+    def get(self, index: int):
+        return self.list[index]
+    
     def pop(self, n: int):
         for l in range(n):
             self.list.pop()
