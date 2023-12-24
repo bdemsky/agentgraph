@@ -27,7 +27,9 @@ class Prompts:
     def __init__(self, path: str):
         self.path = path
 
-    def createPrompt(self, prompt_name: str, vars: set) -> Prompt:
+    def createPrompt(self, prompt_name: str, vars: set = None) -> Prompt:
+        if vars == None:
+            vars = {}
         return Prompt(self, prompt_name, set)
 
     def runPrompt(self, prompt_name: str, data: dict) -> str:

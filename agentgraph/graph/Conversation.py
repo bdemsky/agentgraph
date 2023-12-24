@@ -22,7 +22,7 @@ class Conversation:
             self.list.pop()
 
     def append(self, other: 'Conversation') -> 'Conversation':
-        Conversation conv = new Conversation()
+        conv = Conversation()
         for l in self.list:
             conv.push(l)
         for l in other.list:
@@ -35,7 +35,7 @@ class Conversation:
         for l in self.list:
             val += l;
         return Conversation(val)
-    
+
     def push(self, text: str):
         self.list.append(text)
 

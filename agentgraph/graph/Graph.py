@@ -1,6 +1,7 @@
 import asyncio
 from agentgraph.graph.BoolVar import BoolVar
 from agentgraph.graph.LLMModel import LLMModel
+from agentgraph.graph.MsgSeq import MsgSeq
 from agentgraph.graph.Var import Var
 from agentgraph.graph.Conversation import Conversation
 
@@ -50,17 +51,23 @@ class GraphNested(GraphNode):
 class GraphLLMAgent(GraphNode):
     """Run some action.  This is a LLM Agent."""
     
-    def __init__(self, model: LLMModel, conversation: Conversation, formatFunc, promptFile: str, outVar: Var, inVars: dict):
+    def __init__(self, model: LLMModel, conversation: Var, outVar: Var,  msg: MsgSeq, formatFunc, inVars: dict):
         super().__init__()
         self.model = model
         self.conversation = conversation
-        self.formatFunc = formatFunc
-        self.promptFile = promptFile
         self.outVar = outVar
+        self.msg = msg
+        self.formatFunc = formatFunc
         self.inVars = inVars if inVars != None else {}
 
     def getReadVars(self) -> list:
-        return self.inVars.values()
+        l = list(self.inVars.values())
+        l.append(self.conversation)
+        if self.msg != None:
+            for var in self.msg.getVars():
+                if not var in l:
+                    l.append(var)
+        return l
         
     def getWriteVars(self) -> list:
         return [self.outVar]
@@ -167,8 +174,8 @@ def checkInVars(inVars: dict):
             raise RuntimeException(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
     
 
-def createLLMAgent(model: LLMModel, conversation: Conversation, formatFunc, promptFile: str, outVar: Var, inVars: dict = None) -> GraphPair:
-    llmAgent = GraphLLMAgent(model, conversation, formatFunc, promptFile, outVar, inVars)
+def createLLMAgent(model: LLMModel, conversation: Var, outVar: Var, msg: MsgSeq = None, formatFunc = None, inVars: dict = None) -> GraphPair:
+    llmAgent = GraphLLMAgent(model, conversation, outVar, msg, formatFunc, inVars)
     return GraphPair(llmAgent, llmAgent)
 
 def createPythonAgent(pythonFunc, inVars: dict = None, outVars: dict = None) -> GraphPair:

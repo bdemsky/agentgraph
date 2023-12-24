@@ -93,7 +93,7 @@ class MsgInterleave(MsgSeq):
         return self.user.getVars().union(self.assistant.getVars())
         
     def isExchange(self) -> bool:
-        return False
+        return True
         
 class MsgSystem(MsgSeq):
     def __init__(self, system: MsgSeq, conv: MsgSeq):
@@ -105,4 +105,4 @@ class MsgSystem(MsgSeq):
         return self.system.getVars().union(self.conv.getVars())
         
     def isExchange(self) -> bool:
-        return False
+        return True

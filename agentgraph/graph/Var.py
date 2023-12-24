@@ -1,9 +1,9 @@
 from agentgraph.graph.MsgSeq import MsgSeq
 
 class Var(MsgSeq):
-    def __init__(self, _name: str):
-        super().__init()
-        self.name = _name
+    def __init__(self, name: str):
+        super().__init__()
+        self.name = name
 
     def getName(self) -> str:
         return self.name
