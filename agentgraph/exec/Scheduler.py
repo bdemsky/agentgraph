@@ -261,7 +261,7 @@ class Scheduler:
             scheduleNode.setDepCount(depCount)
 
             if (depCount == 0):
-                self.startTask(scheduleNode)
+                self.startBaseTask(scheduleNode, node)
             
             # Update variable map with any of our dependencies
             for var in outVars:
@@ -276,7 +276,8 @@ class Scheduler:
                 # the direction.
                 if scheduleNode.depCount != 0:
                     return
-                node = node.getNext(scheduleNode.varMap[node.getBranchVar()])
+                edge = 1 if scheduleNode.inVarMap[node.getBranchVar()] else 0
+                node = node.getNext(edge)
             else:
                 node = node.getNext(0)
 
@@ -337,18 +338,12 @@ class Scheduler:
             #Ready to run this one now
             startTask(node)
                     
-    def startTask(self, scheduleNode: ScheduleNode):
+    def startBaseTask(self, scheduleNode: ScheduleNode, graphnode: GraphNode):
         """Starts task."""
+        
         graphnode = scheduleNode.getGraphNode()
         
-        if isinstance(graphnode, GraphNodeBranch):
-            #Process branch task
-            edge = 0
-            if scheduleNode.inVarMap[graphnode.getBranchVar()]:
-                edge = 1
-            graphnode = graphnode.getNext(edge)
-            self.scan(graphnode)
-        elif graphnode == self.scope:
+        if graphnode == self.scope:
             #Dependences are resolve for final node
             if self.parent != None:
                 self.parent.completed(scheduleNode)
@@ -361,3 +356,16 @@ class Scheduler:
         else:
             #Schedule the job
             self.engine.queueItem(scheduleNode, self)
+
+    def startTask(self, scheduleNode: ScheduleNode):
+        """Starts task including conditional branch instruction."""
+        
+        graphnode = scheduleNode.getGraphNode()
+        
+        if isinstance(graphnode, GraphNodeBranch):
+            #Process branch task
+            edge = 1 if scheduleNode.inVarMap[graphnode.getBranchVar()] else 0
+            graphnode = graphnode.getNext(edge)
+            self.scan(graphnode)
+        else:
+            startBaseTask(self, scheduleNode, graphnode)
