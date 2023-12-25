@@ -16,3 +16,6 @@ class Var(MsgSeq):
 
     def getVars(self) -> set:
         return { self }
+
+    def exec(self, varsMap: dict):
+        return varsMap[self]

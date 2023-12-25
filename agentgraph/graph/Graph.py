@@ -75,15 +75,17 @@ class GraphLLMAgent(GraphNode):
     async def execute(self, varMap: dict) -> dict:
         """ Actually execute LLM Agent."""
 
-        # First, compose dictionary for inVars (str -> Var) and varMap
-        # (Var -> Value) to generate inMap (str -> Value)
-        
-        inMap = dict()
-        for name, var in self.inVars:
-            inMap[name] = varMap[var]
-        
-        # Next, actually call the formatFunc to generate the prompt
-        output = await self.formatFunc(inMap)
+        if self.msg != None:
+            output = self.msg.exec(varMap)
+        else:
+            inMap = dict()
+            # First, compose dictionary for inVars (str -> Var) and varMap
+            # (Var -> Value) to generate inMap (str -> Value)
+            for name, var in self.inVars:
+                inMap[name] = varMap[var]
+
+            # Next, actually call the formatFunc to generate the prompt
+            output = await self.formatFunc(inMap)
 
         # Call the model
         outStr = await self.model.sendData(output)
@@ -207,8 +209,8 @@ def createDoWhile(compute: GraphPair, branchvar: BoolVar) -> GraphPair:
     branch.setNext(0, graph)
 
     #Save variable read/write results
-    graph.setReadVars(readSetThen)
-    graph.setWriteVars(writeSetThen)
+    graph.setReadVars(readSet)
+    graph.setWriteVars(writeSet)
     
     return GraphPair(graph, graph)
 

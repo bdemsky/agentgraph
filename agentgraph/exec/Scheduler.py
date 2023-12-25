@@ -234,10 +234,11 @@ class Scheduler:
         self.count = 0
         self.scoreboard = ScoreBoard()
         
-    async def scan(self, node: GraphNode):
+    def scan(self, node: GraphNode):
         """Scans nodes in graph for scheduling purposes."""
         
         while True:
+            print(node)
             depCount = 0
             inVars = node.getReadVars()
             outVars = node.getWriteVars()
@@ -342,7 +343,10 @@ class Scheduler:
         
         if isinstance(graphnode, GraphNodeBranch):
             #Process branch task
-            graphnode = graphnode.getNext(scheduleNode.varMap[graphnode.getBranchVar()])
+            edge = 0
+            if scheduleNode.inVarMap[graphnode.getBranchVar()]:
+                edge = 1
+            graphnode = graphnode.getNext(edge)
             self.scan(graphnode)
         elif graphnode == self.scope:
             #Dependences are resolve for final node
