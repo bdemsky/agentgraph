@@ -26,6 +26,7 @@ class Engine:
                 self.queue.async_q.task_done()
                 break
             scheduleNode, scheduler = item
+            print(scheduleNode)
             await scheduleNode.run()
             scheduler.completed(scheduleNode)
             self.queue.async_q.task_done()
@@ -33,7 +34,7 @@ class Engine:
     def runGraph(self, graph: GraphNested, inVars: dict):
         from agentgraph.exec.Scheduler import Scheduler
         scheduler = Scheduler(graph, inVars, None, self)
-        asyncio.run_coroutine_threadsafe(scheduler.scan(graph.start), self.loop).result()
+        asyncio.run_coroutine_threadsafe(wrap_scan(scheduler, graph), self.loop)
         return
 
     def queueItem(self, node: 'agentgraph.graph.ScheduleNode', scheduler):
@@ -46,6 +47,9 @@ class Engine:
         self.queue.sync_q.join()
         self.loop.call_soon_threadsafe(self.loop.stop)
         self.event_loop_thread.join()
+
+async def wrap_scan(scheduler, graph):
+    scheduler.scan(graph.start)
 
 async def create_queue() -> janus.Queue:
     queue = janus.Queue()

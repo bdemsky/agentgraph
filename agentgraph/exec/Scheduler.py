@@ -2,7 +2,7 @@ import asyncio
 from agentgraph.exec.Engine import Engine
 from agentgraph.graph.Graph import GraphNested, GraphNode, GraphNodeBranch
 from agentgraph.graph.Var import Var
-
+import agentgraph.config
 
 class ScheduleNode:
     """Schedule node to track dependences for a task instance."""
@@ -12,8 +12,8 @@ class ScheduleNode:
         self.waitMap = dict()
         self.inVarMap = dict()
         self.depCount = 0
-        self.refs = {}
-
+        self.refs = set()
+        
     def addRef(self, ref) -> bool:
         """Keeps track of the heap references this task will use.  If
         we see the same reference multiple times, return false on the
@@ -21,7 +21,7 @@ class ScheduleNode:
         
         if ref in self.refs:
             return False
-        refs.add(ref)
+        self.refs.add(ref)
         return True
         
     def setDepCount(self, depCount: int):
@@ -182,7 +182,6 @@ class ScoreBoard:
         """Removes a waiting schedulenode from the list.  Returns
         false if that node had already cleared this queue and true if
         it was still waiting."""
-        print("QQ")
         first, last = self.accesses[object]
         if node in first.getWaiters():
             first.getWaiters().remove(node)
@@ -233,12 +232,12 @@ class Scheduler:
         self.parent = parent
         self.count = 0
         self.scoreboard = ScoreBoard()
+        self.windowSize = 0
+        self.windowStall = None
         
     def scan(self, node: GraphNode):
         """Scans nodes in graph for scheduling purposes."""
-        
         while True:
-            print(node)
             depCount = 0
             inVars = node.getReadVars()
             outVars = node.getWriteVars()
@@ -255,11 +254,17 @@ class Scheduler:
                     scheduleNode.setInVarVal(var, lookup)
                     if var.isMutable():
                         # If the variable is mutable, add ourselves.
-                        depCount += handleReference(scheduleNode, var, lookup)
+                        try:
+                            depCount += self.handleReference(scheduleNode, var, lookup)
+                        except Exception as e:
+                            print('Error', e)
+                            return
                         
             # Save our dependence count.
             scheduleNode.setDepCount(depCount)
-
+            print(f"node={node} sN={scheduleNode} count={depCount}\n")
+            print(inVars)
+            
             if (depCount == 0):
                 self.startBaseTask(scheduleNode, node)
             
@@ -271,27 +276,33 @@ class Scheduler:
 
             #Compute next node to scan
             if isinstance(node, GraphNodeBranch):
-
                 # If we have a branchnode, we have to see if we know
                 # the direction.
                 if scheduleNode.depCount != 0:
+                    return
+
+                # Don't want dataflow graph construction to get too
+                # far ahead of execution.
+                if self.windowSize >= agentgraph.config.MAX_WINDOW_SIZE:
+                    self.windowStall = scheduleNode
                     return
                 edge = 1 if scheduleNode.inVarMap[node.getBranchVar()] else 0
                 node = node.getNext(edge)
             else:
                 node = node.getNext(0)
+                
+            if node == None:
+                # TODO: Do we need something more here for futures??
+                return
 
-
-    def handleReference(self, scheduleNode: ScheduleNode, var:Var, lookup) -> int:
+    def handleReference(self, scheduleNode: ScheduleNode, var: Var, lookup) -> int:
         """We have a variable that references a mutable object.  So the
         variable has to be defined and we need to run it through the
         scoreboard to make sure all prior mutations are done.  This
         function returns the number of unresolved dependences due to
         this heap dependency."""
-        
-        if (scheduleNode.addRef(loop)):
+        if (scheduleNode.addRef(lookup)):
             return 0
-
         if var.isRead():
              if self.addReader(lookup, scheduleNode):
                  return 0
@@ -306,6 +317,13 @@ class Scheduler:
         """We call this when a task has completed."""
 
         # Get list of tasks waiting on variables
+        self.windowSize -= 1
+        if self.windowSize < agentgraph.config.MAX_WINDOW_SIZE and self.windowStall != None:
+            if self.windowStall != None:
+                tmp = self.windowStall
+                self.windowStall = None
+                self.scan(tmp)
+            
         waiters = node.getWaiters()
         for var in waiters:
             # Get value  of output variable
@@ -351,10 +369,12 @@ class Scheduler:
                 print("Running GN")
         elif isinstance(graphnode, GraphNested):
             # Need start new Scheduler
+            self.windowSize += 1
             child = Scheduler(graphnode, scheduleNode.getInVarMap(), self, self.engine)
             child.scan(graphnode.getStart())
         else:
             #Schedule the job
+            self.windowSize += 1
             self.engine.queueItem(scheduleNode, self)
 
     def startTask(self, scheduleNode: ScheduleNode):

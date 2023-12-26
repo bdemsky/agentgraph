@@ -3,6 +3,7 @@ from agentgraph.graph.LLMModel import LLMModel
 from agentgraph.graph.Conversation import Conversation
 from agentgraph.graph.Prompts import Prompts
 from agentgraph.graph.Var import Var
+from agentgraph.graph.MutVar import MutVar
 from agentgraph.graph.BoolVar import BoolVar
 import agentgraph.graph.Graph
 import os
@@ -12,8 +13,8 @@ eng = Engine()
 model = LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
 convA = Conversation()
 convB = Conversation()
-varA = Var("A")
-varB = Var("B")
+varA = MutVar("A")
+varB = MutVar("B")
 ovarA = Var("OA")
 ovarB = Var("OB")
 d = {varA: convA, varB: convB}
