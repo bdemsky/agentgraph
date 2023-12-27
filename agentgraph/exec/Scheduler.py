@@ -35,8 +35,8 @@ class ScheduleNode:
         """Decrement the outstanding dependence count.  If it hits
         zero, then we are ready to run."""
         
-        count = self.decCount - 1
-        self.decCount = count;
+        count = self.depCount - 1
+        self.depCount = count;
         return count == 0
 
 
@@ -116,7 +116,7 @@ class ScoreBoardNode:
         
         self.waiters.add(waiter)
 
-    def getWaiters() -> list:
+    def getWaiters(self) -> list:
         """Returns a list of waiting ScheduleNodes for this scoreboard
         node."""
         
@@ -187,7 +187,7 @@ class ScoreBoard:
         first, last = self.accesses[object]
         if node in first.getWaiters():
             first.getWaiters().remove(node)
-            if len(first).getWaiters() == 0:
+            if len(first.getWaiters()) == 0:
                 if first == last:
                     self.accesses[object] = None
                 else:
@@ -319,13 +319,6 @@ class Scheduler:
         """We call this when a task has completed."""
 
         # Get list of tasks waiting on variables
-        self.windowSize -= 1
-        if self.windowSize < agentgraph.config.MAX_WINDOW_SIZE and self.windowStall != None:
-            if self.windowStall != None:
-                tmp = self.windowStall
-                self.windowStall = None
-                self.scan(tmp)
-            
         waiters = node.getWaiters()
         for var in waiters:
             # Get value  of output variable
@@ -345,9 +338,17 @@ class Scheduler:
                     decDepCount(n)
         #Release our heap dependences
         inVarValMap = node.getInVarMap()
-        for var, val in inVarValMap:
+        for var in inVarValMap:
             if var.isMutable():
+                val = inVarValMap[var]
                 self.scoreboard.removeWaiter(val, node, self)
+        self.windowSize -= 1
+        if self.windowSize < agentgraph.config.MAX_WINDOW_SIZE and self.windowStall != None:
+            if self.windowStall != None:
+                tmp = self.windowStall
+                self.windowStall = None
+                self.scan(tmp.getGraphNode())
+        
 
                 
     def decDepCount(self, node: ScheduleNode):
@@ -356,7 +357,7 @@ class Scheduler:
         
         if node.decDepCount():
             #Ready to run this one now
-            startTask(node)
+            self.startTask(node)
                     
     def startBaseTask(self, scheduleNode: ScheduleNode, graphnode: GraphNode):
         """Starts task."""
@@ -389,4 +390,4 @@ class Scheduler:
             graphnode = graphnode.getNext(edge)
             self.scan(graphnode)
         else:
-            startBaseTask(self, scheduleNode, graphnode)
+            self.startBaseTask(scheduleNode, graphnode)

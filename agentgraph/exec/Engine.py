@@ -31,10 +31,11 @@ class Engine:
             scheduleNode, scheduler = item
             try:
                 await scheduleNode.run()
+                scheduler.completed(scheduleNode)
             except Exception as e:
                 print('Error', e)
                 print(traceback.format_exc())
-            scheduler.completed(scheduleNode)
+
             self.queue.async_q.task_done()
 
     def runGraph(self, graph: GraphNested, inVars: dict):
