@@ -90,6 +90,10 @@ class GraphLLMAgent(GraphNode):
         # Call the model
         outStr = await self.model.sendData(output)
         print(outStr)
+
+        # Update conversation
+        varMap[self.conversation].push(outStr)
+        
         # Put result in output map
         outMap = dict()
         outMap[self.outVar] = outStr
