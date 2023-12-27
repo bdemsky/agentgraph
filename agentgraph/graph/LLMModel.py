@@ -24,7 +24,7 @@ class LLMModel:
             
         while True:
             try:
-                chat_competion = await self.client.chat.completions.create(messages=message_to_send, model=model_to_use, timeout=self.timeout)
+                chat_completion = await self.client.chat.completions.create(messages=message_to_send, model=model_to_use, timeout=self.timeout)
                 break
             except openai.APITimeoutError as e:
                 retries+=1
@@ -32,5 +32,5 @@ class LLMModel:
                     raise Exception(f"Exceeded 3 retries")
                 print("Retrying due to failure from openai\n")
 
-        chat_message = completion.choices[0].message.content
+        chat_message = chat_completion.choices[0].message.content
         return chat_message

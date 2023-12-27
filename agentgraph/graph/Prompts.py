@@ -1,4 +1,5 @@
 from jinja2 import Environment, FileSystemLoader
+from agentgraph.graph.Conversation import Conversation
 from agentgraph.graph.MsgSeq import MsgSeq
 
 class Prompt(MsgSeq):
@@ -14,9 +15,9 @@ class Prompt(MsgSeq):
     def exec(self, varsMap: dict):
         """Compute value of prompt at runtime"""
         data = dict()
-        for var, value in varsMap:
+        for var in varsMap:
+            value = varsMap[var]
             data[var.getName()] = value
-
         val = self.prompts.runPrompt(self.name, data)
         return Conversation(val)
 
@@ -29,8 +30,8 @@ class Prompts:
 
     def createPrompt(self, prompt_name: str, vars: set = None) -> Prompt:
         if vars == None:
-            vars = {}
-        return Prompt(self, prompt_name, set)
+            vars = set()
+        return Prompt(self, prompt_name, vars)
 
     def runPrompt(self, prompt_name: str, data: dict) -> str:
         if data == None:
@@ -38,7 +39,7 @@ class Prompts:
         
         file_loader = FileSystemLoader(self.path)
         env = Environment(loader = file_loader)
-        env.get_template(prompt_name)
+        template = env.get_template(prompt_name)
         output = template.render(data)
 
         return output

@@ -67,8 +67,8 @@ class MsgConcat(MsgSeq):
         return self.left.getVars().union(self.right.getVars())
 
     def exec(self, varsMap: dict):
-        vleft = left.exec(dict)
-        vright = right.exec(dict)
+        vleft = self.left.exec(varsMap)
+        vright = self.right.exec(varsMap)
         return vleft.append(vright)
     
 class MsgSummary(MsgSeq):
@@ -80,7 +80,7 @@ class MsgSummary(MsgSeq):
         return self.msg.getVars()
 
     def exec(self, varsMap: dict):
-        val = msg.exec(dict)
+        val = msg.exec(varsMap)
         return val.summary()
     
 class MsgInterleave(MsgSeq):
@@ -96,8 +96,8 @@ class MsgInterleave(MsgSeq):
         return True
 
     def exec(self, varsMap: dict):
-        userseq = self.user.exec(dict)
-        assistantseq = self.assistant.exec(dict)
+        userseq = self.user.exec(varsMap)
+        assistantseq = self.assistant.exec(varsMap)
         seq = []
         for i in range(userseq.size()):
             message = userseq.get(i)
@@ -120,9 +120,9 @@ class MsgSystem(MsgSeq):
         return True
 
     def exec(self, varsMap: dict):
-        conv= self.conv.exec(dict)
-        systemmsg = self.system.exec(dict)
-        sys = [{"role": "system", "content": systemmsg}]
+        conv= self.conv.exec(varsMap)
+        systemmsg = self.system.exec(varsMap)
+        sys = [{"role": "system", "content": systemmsg.get(0)}]
         if self.conv.isSingleMsg():
             return sys + [{"role": "system", "content": conv.get(0)}]
         else:

@@ -86,10 +86,10 @@ class GraphLLMAgent(GraphNode):
 
             # Next, actually call the formatFunc to generate the prompt
             output = await self.formatFunc(inMap)
-
+        print(output)
         # Call the model
         outStr = await self.model.sendData(output)
-
+        print(outStr)
         # Put result in output map
         outMap = dict()
         outMap[self.outVar] = outStr

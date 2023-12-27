@@ -1,4 +1,6 @@
 import asyncio
+import traceback
+import sys
 from agentgraph.exec.Engine import Engine
 from agentgraph.graph.Graph import GraphNested, GraphNode, GraphNodeBranch
 from agentgraph.graph.Var import Var
@@ -85,13 +87,13 @@ class ScheduleNode:
 class ScoreBoardNode:
     """ScoreBoard linked list node to track heap dependences."""
 
-    def __init__(self, isRead: bool):
+    def __init__(self, isReader: bool):
         """Create a new scoreboard node.  The isRead parameter is
         True is this is a reader node and false if it is a writer
         node."""
         
         self.isReader = isReader
-        self.waiters = {}
+        self.waiters = set()
         self.next = None
 
     def isReader(self) -> bool:
@@ -163,7 +165,7 @@ class ScoreBoard:
         
         # Create a new scoreboard node for writing and add ourselves to
         # it.
-        scoreboardnode = ScoreBoardNode(false)
+        scoreboardnode = ScoreBoardNode(False)
         scoreboardnode.addWaiter(node)
         
         if object in self.accesses:
@@ -258,15 +260,11 @@ class Scheduler:
                             depCount += self.handleReference(scheduleNode, var, lookup)
                         except Exception as e:
                             print('Error', e)
+                            print(traceback.format_exc())
                             return
                         
             # Save our dependence count.
             scheduleNode.setDepCount(depCount)
-            print(f"node={node} sN={scheduleNode} count={depCount}\n")
-            print(inVars)
-            
-            if (depCount == 0):
-                self.startBaseTask(scheduleNode, node)
             
             # Update variable map with any of our dependencies
             for var in outVars:
@@ -289,6 +287,10 @@ class Scheduler:
                 edge = 1 if scheduleNode.inVarMap[node.getBranchVar()] else 0
                 node = node.getNext(edge)
             else:
+                self.windowSize += 1
+                if (depCount == 0):
+                    self.startBaseTask(scheduleNode, node)
+                
                 node = node.getNext(0)
                 
             if node == None:
@@ -301,14 +303,14 @@ class Scheduler:
         scoreboard to make sure all prior mutations are done.  This
         function returns the number of unresolved dependences due to
         this heap dependency."""
-        if (scheduleNode.addRef(lookup)):
+        if (scheduleNode.addRef(lookup) == False):
             return 0
         if var.isRead():
-             if self.addReader(lookup, scheduleNode):
+             if self.scoreboard.addReader(lookup, scheduleNode):
                  return 0
              else:
                  return 1
-        if self.addWriter(lookup, scheduleNode):
+        if self.scoreboard.addWriter(lookup, scheduleNode):
             return 0
         else:
             return 1
@@ -363,18 +365,17 @@ class Scheduler:
         
         if graphnode == self.scope:
             #Dependences are resolve for final node
+            self.windowSize -= 1
             if self.parent != None:
                 self.parent.completed(scheduleNode)
             else:
                 print("Running GN")
         elif isinstance(graphnode, GraphNested):
             # Need start new Scheduler
-            self.windowSize += 1
             child = Scheduler(graphnode, scheduleNode.getInVarMap(), self, self.engine)
             child.scan(graphnode.getStart())
         else:
             #Schedule the job
-            self.windowSize += 1
             self.engine.queueItem(scheduleNode, self)
 
     def startTask(self, scheduleNode: ScheduleNode):
