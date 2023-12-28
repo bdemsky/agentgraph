@@ -4,7 +4,7 @@ import traceback
 import sys
 
 from threading import Thread
-from agentgraph.graph.Graph import GraphPair, GraphNested
+from agentgraph.graph import GraphPair, GraphNested
 
 class Engine:
     def __init__(self, concurrency: int = 20):
@@ -44,7 +44,7 @@ class Engine:
         asyncio.run_coroutine_threadsafe(wrap_scan(scheduler, graph), self.loop).result()
         return
 
-    def queueItem(self, node: 'agentgraph.graph.ScheduleNode', scheduler):
+    def queueItem(self, node: 'agentgraph.core.ScheduleNode', scheduler):
         self.queue.async_q.put_nowait((node, scheduler))
         
     def shutdown(self):

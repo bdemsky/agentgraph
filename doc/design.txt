@@ -5,7 +5,8 @@ to mutable objects).  Only one variable allowed to reference mutable
 object.
 
 Short Term Todo Items:
-1. Code for assembling messages
+0. Start to do something with tool...
+1. Play with APIs to limit red tape.
 2. Code to snapshot variables automatically
 3. Eliminate maps and just use variable names
 4. Early enabling variables from GraphExit Node
@@ -14,6 +15,10 @@ Short Term Todo Items:
 7. Add debugging support:
   a. Strict debugging support, memoize queries, don't generate query if we have it
   b. Support outputting problematic chat history as python program for debugging
+8. Function definition/calling
+9. Cost computation??
+10. Automatic failover to large model if we get a small model error?
+11. Speculative execution?
 
 Long Term Todo Items:
 1. Support for RAG

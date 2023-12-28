@@ -1,6 +1,6 @@
 from jinja2 import Environment, FileSystemLoader
-from agentgraph.graph.Conversation import Conversation
-from agentgraph.graph.MsgSeq import MsgSeq
+from agentgraph.core.Conversation import Conversation
+from agentgraph.core.MsgSeq import MsgSeq
 
 class Prompt(MsgSeq):
     def __init__(self, prompts: 'Prompts', name: str, vars: set):

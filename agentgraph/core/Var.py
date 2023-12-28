@@ -1,4 +1,4 @@
-from agentgraph.graph.MsgSeq import MsgSeq
+from agentgraph.core.MsgSeq import MsgSeq
 
 class Var(MsgSeq):
     def __init__(self, name: str):

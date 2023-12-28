@@ -1,9 +1,9 @@
 import asyncio
-from agentgraph.graph.BoolVar import BoolVar
-from agentgraph.graph.LLMModel import LLMModel
-from agentgraph.graph.MsgSeq import MsgSeq
-from agentgraph.graph.Var import Var
-from agentgraph.graph.Conversation import Conversation
+from agentgraph.core.BoolVar import BoolVar
+from agentgraph.core.LLMModel import LLMModel
+from agentgraph.core.MsgSeq import MsgSeq
+from agentgraph.core.Var import Var
+from agentgraph.core.Conversation import Conversation
 
 class GraphNode:
     """Base Node For Nested CFG Representation of Program"""

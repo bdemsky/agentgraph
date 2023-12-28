@@ -60,3 +60,15 @@ class FileStore:
 
     def __delitem__(self, key: Union[str, Path]) -> None:
         del self.filestore[key]
+
+    def writeFiles(self, path: Union[str, Path]):
+        """Write all files to path."""
+        
+        filepath: Path = Path(path).absolute()
+        filepath.mkdir(parents=True, exist_ok=True)
+        for key in self.filestore:
+            contents = self.filestore[key]
+            full_path = filepath / key
+            full_path.parent.mkdir(parents = True, exist_ok = True)
+            full_path.write_text(contents, encoding="utf-8")
+            

@@ -1,11 +1,11 @@
 from agentgraph.exec.Engine import Engine
-from agentgraph.graph.LLMModel import LLMModel
-from agentgraph.graph.Conversation import Conversation
-from agentgraph.graph.Prompts import Prompts
-from agentgraph.graph.Var import Var
-from agentgraph.graph.MutVar import MutVar
-from agentgraph.graph.BoolVar import BoolVar
-import agentgraph.graph.Graph
+from agentgraph.core.LLMModel import LLMModel
+from agentgraph.core.Conversation import Conversation
+from agentgraph.core.Prompts import Prompts
+from agentgraph.core.Var import Var
+from agentgraph.core.MutVar import MutVar
+from agentgraph.core.BoolVar import BoolVar
+import agentgraph.graph
 import os
 import time
 
@@ -27,8 +27,8 @@ d[varLoop] = True
 d[varA] = convA
 d[varB] = convB
 
-agentA = agentgraph.graph.Graph.createLLMAgent(model, varA, ovarA, msg = sys > (pA + varB) & varA)
-agentB = agentgraph.graph.Graph.createLLMAgent(model, varB, ovarB, msg = sys > varA & varB)
-loop = agentgraph.graph.Graph.createDoWhile(agentA | agentB, varLoop)
+agentA = agentgraph.graph.createLLMAgent(model, varA, ovarA, msg = sys > (pA + varB) & varA)
+agentB = agentgraph.graph.createLLMAgent(model, varB, ovarB, msg = sys > varA & varB)
+loop = agentgraph.graph.createDoWhile(agentA | agentB, varLoop)
 eng.runGraph(loop, d)
 eng.shutdown()

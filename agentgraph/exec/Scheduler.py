@@ -2,8 +2,8 @@ import asyncio
 import traceback
 import sys
 from agentgraph.exec.Engine import Engine
-from agentgraph.graph.Graph import GraphNested, GraphNode, GraphNodeBranch
-from agentgraph.graph.Var import Var
+from agentgraph.graph import GraphNested, GraphNode, GraphNodeBranch
+from agentgraph.core.Var import Var
 import agentgraph.config
 
 class ScheduleNode:

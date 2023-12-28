@@ -1,5 +1,5 @@
-from agentgraph.graph.Var import Var
-from agentgraph.graph.MutVar import MutVar
+from agentgraph.core.Var import Var
+from agentgraph.core.MutVar import MutVar
 
 class SnapshotVar(Var):
     """Wrapper class for variables that will be snapshotted"""

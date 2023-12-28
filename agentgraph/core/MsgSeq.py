@@ -120,7 +120,7 @@ class MsgSystem(MsgSeq):
         return True
 
     def exec(self, varsMap: dict):
-        conv= self.conv.exec(varsMap)
+        conv = self.conv.exec(varsMap)
         systemmsg = self.system.exec(varsMap)
         sys = [{"role": "system", "content": systemmsg.get(0)}]
         if self.conv.isSingleMsg():
