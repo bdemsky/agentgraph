@@ -2,6 +2,7 @@ import asyncio
 from agentgraph.core.BoolVar import BoolVar
 from agentgraph.core.LLMModel import LLMModel
 from agentgraph.core.MsgSeq import MsgSeq
+from agentgraph.core.MutVar import MutVar
 from agentgraph.core.Var import Var
 from agentgraph.core.Conversation import Conversation
 
@@ -179,6 +180,23 @@ def checkInVars(inVars: dict):
         if var.isMutable() and var.isRead() and var.getVar() in mutSet:
             raise RuntimeException(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
     
+class graph:
+    def __init__(self):
+        self.varMap = dict()
+
+    def getVarMap(self) -> dict:
+        return self.varMap
+        
+    def createConversation(self, name: str) -> MutVar:
+        conv = Conversation()
+        var = MutVar(name)
+        self.varMap[var] = conv
+        return var
+
+    def createBoolVar(self, name: str, val: bool) -> BoolVar:
+        var = BoolVar(name)
+        self.varMap[var] = val
+        return var
 
 def createLLMAgent(model: LLMModel, conversation: Var, outVar: Var, msg: MsgSeq = None, formatFunc = None, inVars: dict = None) -> GraphPair:
     llmAgent = GraphLLMAgent(model, conversation, outVar, msg, formatFunc, inVars)
@@ -190,28 +208,28 @@ def createPythonAgent(pythonFunc, inVars: dict = None, outVars: dict = None) -> 
     
 def createSequence(list) -> GraphPair:
     """This creates a sequency of GraphNodes"""
-    
+        
     start = list[0].start
     last = list[0].end
     for l in list[1:]:
         last.setNext(0, l.start)
         last = l.end
-    return GraphPair(start, last)
+        return GraphPair(start, last)
 
 def createDoWhile(compute: GraphPair, branchvar: BoolVar) -> GraphPair:
     """This creates a do while loop."""
-    
+        
     branch = GraphNodeBranch(branchvar)
     graph = GraphNested(compute.start)
     compute.end.setNext(0, branch)
-
+    
     #Analyze read/write vars while we still have a linear structure
     readSet, writeSet = analyzeLinear(compute.start, branch)
-
+    
     #Finish graph
     branch.setNext(1, compute.start)
     branch.setNext(0, graph)
-
+    
     #Save variable read/write results
     graph.setReadVars(readSet)
     graph.setWriteVars(writeSet)
@@ -230,7 +248,7 @@ def createIfElse(condvar: BoolVar, thenN: GraphPair, elseN: GraphPair) -> GraphP
     branch.setNext(1, thenN.start)
     thenN.last.setNext(0, graph)
     elseN.last.setNext(0, graph)
-
+        
     #Combine variable reads/writes
     readSetThen.update(readSetElse)
     writeSetThen.update(writeSetElse)
@@ -247,7 +265,7 @@ def createRunnable(pair: GraphPair) -> GraphNested:
     readSet, writeSet = analyzeLinear(pair.start, pair.end)
     graph = GraphNested(pair.start)
     pair.end.setNext(0, graph)
-
+        
     graph.setReadVars(readSet)
     graph.setWriteVars(writeSet)
     return graph
@@ -260,6 +278,7 @@ def analyzeLinear(start: GraphNode, end: GraphNode) -> tuple[set, set]:
     while node != None:
         list.append(node)
         node = node.getNext(0)
+        
     readSet = set()
     writeSet = set()
     for i in range(len(list) - 1, -1, -1):

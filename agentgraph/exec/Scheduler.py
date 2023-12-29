@@ -2,7 +2,7 @@ import asyncio
 import traceback
 import sys
 from agentgraph.exec.Engine import Engine
-from agentgraph.graph import GraphNested, GraphNode, GraphNodeBranch
+from agentgraph.core.graph import GraphNested, GraphNode, GraphNodeBranch
 from agentgraph.core.Var import Var
 import agentgraph.config
 
