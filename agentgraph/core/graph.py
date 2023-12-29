@@ -1,10 +1,11 @@
 import asyncio
 from agentgraph.core.BoolVar import BoolVar
+from agentgraph.core.Conversation import Conversation
+from agentgraph.core.FileStore import FileStore
 from agentgraph.core.LLMModel import LLMModel
 from agentgraph.core.MsgSeq import MsgSeq
 from agentgraph.core.MutVar import MutVar
 from agentgraph.core.Var import Var
-from agentgraph.core.Conversation import Conversation
 
 class GraphNode:
     """Base Node For Nested CFG Representation of Program"""
@@ -198,6 +199,12 @@ class graph:
         self.varMap[var] = val
         return var
 
+    def createFileStore(self, name: str) -> MutVar:
+        filestore = FileStore()
+        var = MutVar(name)
+        self.varMap[var] = filestore
+        return var
+    
 def createLLMAgent(model: LLMModel, conversation: Var, outVar: Var, msg: MsgSeq = None, formatFunc = None, inVars: dict = None) -> GraphPair:
     llmAgent = GraphLLMAgent(model, conversation, outVar, msg, formatFunc, inVars)
     return GraphPair(llmAgent, llmAgent)
