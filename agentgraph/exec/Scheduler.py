@@ -2,7 +2,7 @@ import asyncio
 import traceback
 import sys
 from agentgraph.exec.Engine import Engine
-from agentgraph.core.graph import GraphNested, GraphNode, GraphNodeBranch
+from agentgraph.core.graph import GraphCall, GraphNested, GraphNode, GraphNodeBranch
 from agentgraph.core.Var import Var
 import agentgraph.config
 
@@ -63,6 +63,9 @@ class ScheduleNode:
         
         return self.waitMap
 
+    def setOutVarMap(self, outVarMap: dict):
+        self.outVarMap = outVarMap
+    
     def getOutVarVal(self, var: Var):
         """Returns the output value for the variable var."""
         
@@ -367,13 +370,39 @@ class Scheduler:
         if graphnode == self.scope:
             #Dependences are resolve for final node
             self.windowSize -= 1
+            #Need to build value map to record the values the nested graph outputs
+            writeMap = dict()
+            if isinstance(graphnode, GraphCall) and graphnode.outMap != None:
+                writeSet = graphnode.call.getWriteVars()
+                for var in writeSet:
+                    if var in graphnode.call.outMap:
+                        writeMap[graphnode.call.outMap[var]] = self.varMap[var]
+                    else:
+                        writeMap[var] = self.varMap[var]
+            else:
+                writeSet = graphnode.getWriteVars()
+                for var in writeSet:
+                    writeMap[var] = self.varMap[var]
+            scheduleNode.setOutVarMap(writeMap)
+                    
             if self.parent != None:
                 self.parent.completed(scheduleNode)
             else:
                 print("Running GN")
         elif isinstance(graphnode, GraphNested):
             # Need start new Scheduler
-            child = Scheduler(graphnode, scheduleNode.getInVarMap(), self, self.engine)
+            inVarMap = scheduleNode.getInVarMap()
+            if isinstance(graphnode, GraphCall) and graphnode.inMap != None:
+                oldVarMap = inVarMap
+                inVarMap = dict()
+                readVars = graphnode.call.getReadVars();
+                for v in readVars:
+                    calleevar = v
+                    if v in graphnode.inMap:
+                        calleevar = graphnode.inMap[v]
+                    inVarMap[v] = oldVarMap[calleevar]
+                
+            child = Scheduler(graphnode, inVarMap, self, self.engine)
             child.scan(graphnode.getStart())
         else:
             #Schedule the job

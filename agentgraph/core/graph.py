@@ -24,7 +24,8 @@ class GraphNode:
 
     def getWriteVars(self) -> list:
         return []
-    
+
+
 class GraphNested(GraphNode):
     """Nested CFG Node.  Used for control flow constructs such as
     If-Then-Else or a Loop."""
@@ -49,7 +50,55 @@ class GraphNested(GraphNode):
         
     def setWriteVars(self, writeVars: list):
         self.writeVars = writeVars
-    
+
+class GraphCall(GraphNested):
+    """Calls another graph"""
+
+    def __init__(self, inMap: dict, outMap: dict):
+        """inMap maps caller parameters Vars to the callee Vars that provide the value.
+        outMap maps caller return Vars to the callee Vars that should be assigned."""
+        super().__init__(None)
+        self.call = None
+        self.inMap = None
+        self.outMap = None
+
+    def getStart(self) -> GraphNode:
+        return self.call.getStart()
+        
+    def setCallee(self, call: GraphNode):
+        self.call = call
+
+    def setInMap(self, inMap: dict):
+        self.inMap = inMap
+
+    def setOutMap(self, outMap: dict):
+        self.outMap = outMap
+        
+    def getReadVars(self) -> list:
+        varList = list()
+        for v in self.call.readVars():
+            newvar = v
+            if self.inMap != None:
+                if v in self.inMap:
+                    newvar = self.inMap[v]
+                
+            if not newvar in varList:
+                varList.append(newvar)
+        return varList
+        
+    def getWriteVars(self) -> list:
+        varList = list()
+        for v in self.call.writeVars():
+            newvar = v
+            if self.outMap != None:
+                if v in self.outMap:
+                    newvar = self.outMap[v]
+                
+            if not newvar in varList:
+                varList.append(newvar)
+        return varList
+        
+        
 class GraphLLMAgent(GraphNode):
     """Run some action.  This is a LLM Agent."""
     
