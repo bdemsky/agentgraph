@@ -151,7 +151,7 @@ class GraphLLMAgent(GraphNode):
         
         return outMap
         
-class GraphPythonAgent(GraphNode):
+class GraphPythonAgent(GraphNested):
     """Run some action.  This is a Python Agent."""
     
     def __init__(self, pythonFunc, inVars: dict, outVars: dict):
@@ -166,7 +166,7 @@ class GraphPythonAgent(GraphNode):
     def getWriteVars(self) -> list:
         return self.outVars.values()
 
-    async def execute(self, varMap: dict) -> dict:
+    async def execute(self, scheduler: 'agentgraph.exec.Scheduler.Scheduler', varMap: dict) -> dict:
         """ Actually execute Python Agent."""
 
         # First, compose dictionary for inVars (str -> Var) and varMap
@@ -187,6 +187,10 @@ class GraphPythonAgent(GraphNode):
             for name, var in self.outVars:
                 outMap[var] = omap[name]
 
+        # Add ourselves to the scheduler with an empty variable map
+        # now that we know there will be no other new tasks.
+        scheduler.addTask(self, dict())
+        
         return outMap
     
 class GraphNodeNop(GraphNode):

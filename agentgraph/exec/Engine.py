@@ -4,7 +4,7 @@ import traceback
 import sys
 
 from threading import Thread
-from agentgraph.core.graph import GraphPair, GraphNested, graph
+from agentgraph.core.graph import GraphNode, GraphPair, GraphNested, graph
 
 
 class Engine:
@@ -31,7 +31,7 @@ class Engine:
                 break
             scheduleNode, scheduler = item
             try:
-                await scheduleNode.run()
+                await scheduleNode.run(scheduler)
                 scheduler.completed(scheduleNode)
             except Exception as e:
                 print('Error', e)
@@ -39,9 +39,7 @@ class Engine:
 
             self.queue.async_q.task_done()
 
-    def runGraph(self, graph: GraphNested, g: graph):
-        from agentgraph.exec.Scheduler import Scheduler
-        scheduler = Scheduler(graph, g.getVarMap(), None, self)
+    def runScan(self, graph: GraphNode, scheduler: 'agentgraph.exec.Scheduler'):
         asyncio.run_coroutine_threadsafe(wrap_scan(scheduler, graph), self.loop).result()
         return
 

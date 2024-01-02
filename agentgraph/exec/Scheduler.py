@@ -83,9 +83,12 @@ class ScheduleNode:
         
         return self.inVarMap
         
-    async def run(self):
+    async def run(self, scheduler: 'Scheduler'):
         """Run the node"""
-        self.outVarMap = await self.node.execute(self.getInVarMap())
+        if isinstance(self.node, GraphPythonAgent):
+            self.outVarMap = await self.node.execute(scheduler, self.getInVarMap())
+        else:
+            self.outVarMap = await self.node.execute(self.getInVarMap())
         
 class ScoreBoardNode:
     """ScoreBoard linked list node to track heap dependences."""
@@ -215,16 +218,31 @@ class ScoreBoard:
                 entry = entry.getNext()
         return True
 
+class TaskNode:
+    def __init__(self, node: GraphNode, varMap: dict):
+        self.node = node
+        self.varMap = varMap
+        self.next = None
+
+    def setNext(self, next: 'TaskNode'):
+        self.next = next
+
+    def getNext(self):
+        return self.next
+        
+    def getVarMap(self) -> dict:
+        return self.varMap
+
+    def getNode(self) -> GraphNode:
+        return self.node
 
 class Scheduler:
     """Scheduler class.  This does all of the scheduling for a given Nested Graph."""
     
-    def __init__(self, scope: GraphNested, varMap: dict, parent: 'Scheduler', engine: Engine):
+    def __init__(self, scope: GraphNested, parent: 'Scheduler', engine: Engine):
 
         """Object initializer for a new Scheduler:
         scope - the scope we are scheduling
-
-        varMap - a map of Vars to values
 
         parent - the Scheduler for our parent scope or None
 
@@ -232,13 +250,45 @@ class Scheduler:
         """
 
         self.scope = scope
-        self.varMap = varMap
-        self.engine = engine
+        self.varMap = dict()
         self.parent = parent
+        self.engine = engine
         self.count = 0
         self.scoreboard = ScoreBoard()
         self.windowSize = 0
         self.windowStall = None
+        self.startTasks = None
+        self.endTasks = None
+        
+    def addTask(self, node: GraphNode, varMap: dict):
+        """
+        node - a GraphNode to run
+        varMap - a map of Vars to values
+        """
+
+        taskNode = TaskNode(node, varMap)
+
+        if self.endTasks == None:
+            self.startTasks = taskNode
+        else:
+            self.endTasks.setNext(taskNode)
+            
+        self.endTasks = taskNode
+        if (self.startTasks == taskNode):
+            self.runTask(taskNode, self.scope == None)
+            
+    def runTask(self, task: TaskNode, fromThread: bool):
+        """Starts up the first task."""
+        
+        for var in task.getVarMap():
+            value = task.getVarMap()[var]
+            self.varMap[var] = value
+            
+        if fromThread:
+            self.scan(task.getNode())
+        else:
+            self.runScan(task.getNode(), self)
+            
         
     def scan(self, node: GraphNode):
         """Scans nodes in graph for scheduling purposes."""
@@ -297,8 +347,20 @@ class Scheduler:
                 node = node.getNext(0)
                 
             if node == None:
-                # TODO: Do we need something more here for futures??
-                return
+                # Remove current task
+                task = self.startTasks
+                self.startTasks = task.getNext()
+                if self.startTasks == None:
+                    # No more work left so return
+                    self.endTasks = None
+                    return
+                else:
+                    # Start scheduling next task
+                    nexttask = selt.startTasks
+                    node = nexttask.getNode()
+                    for var in nexttask.getVarMap():
+                        value = nexttask.getVarMap()[var]
+                        self.varMap[var] = value   
 
     def handleReference(self, scheduleNode: ScheduleNode, var: Var, lookup) -> int:
         """We have a variable that references a mutable object.  So the
@@ -391,7 +453,16 @@ class Scheduler:
                 print("Running GN")
         elif isinstance(graphnode, GraphNested):
             # Need start new Scheduler
-            inVarMap = scheduleNode.getInVarMap()
+            if isinstance(graphnode, GraphPythonAgent):
+                # Start scheduler for PythonAgent child
+                child = Scheduler(graphnode, dict(), self, self.engine)
+                self.engine.queueItem(scheduleNode, child)
+                return
+            
+            inVarMap = scheduleNode.getInVarMap()            
+
+            # If we are calling another graph, then need to do some
+            # variable remapping
             if isinstance(graphnode, GraphCall) and graphnode.inMap != None:
                 oldVarMap = inVarMap
                 inVarMap = dict()
@@ -401,7 +472,7 @@ class Scheduler:
                     if v in graphnode.inMap:
                         calleevar = graphnode.inMap[v]
                     inVarMap[v] = oldVarMap[calleevar]
-                
+
             child = Scheduler(graphnode, inVarMap, self, self.engine)
             child.scan(graphnode.getStart())
         else:
