@@ -1,8 +1,7 @@
 from agentgraph.core.graph import graph, createLLMAgent, createPythonAgent, createSequence, createDoWhile, createIfElse, createRunnable
-from agentgraph.exec.Engine import Engine
-from agentgraph.exec.Scheduler import Scheduler
 
-def getRootScheduler(eng: Engine):
+def getRootScheduler(eng: 'agentgraph.exec.Engine.Engine'):
     """Creates a root scheduler."""
-
+    from agentgraph.exec.Scheduler import Scheduler
+    
     return Scheduler(None, None, eng)
