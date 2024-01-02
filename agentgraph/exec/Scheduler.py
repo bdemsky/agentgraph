@@ -2,7 +2,7 @@ import asyncio
 import traceback
 import sys
 from agentgraph.exec.Engine import Engine
-from agentgraph.core.graph import GraphCall, GraphNested, GraphNode, GraphNodeBranch
+from agentgraph.core.graph import graph, GraphCall, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent
 from agentgraph.core.Var import Var
 import agentgraph.config
 
@@ -260,12 +260,15 @@ class Scheduler:
         self.startTasks = None
         self.endTasks = None
         
-    def addTask(self, node: GraphNode, varMap: dict):
+    def addTask(self, node: GraphNode, g: graph, varMap: dict = None):
         """
+        Adds a new task for the scheduler to run.
         node - a GraphNode to run
         varMap - a map of Vars to values
         """
 
+        if g != None:
+            varMap = g.getVarMap()
         taskNode = TaskNode(node, varMap)
 
         if self.endTasks == None:
@@ -279,7 +282,6 @@ class Scheduler:
             
     def runTask(self, task: TaskNode, fromThread: bool):
         """Starts up the first task."""
-        
         for var in task.getVarMap():
             value = task.getVarMap()[var]
             self.varMap[var] = value
@@ -287,7 +289,7 @@ class Scheduler:
         if fromThread:
             self.scan(task.getNode())
         else:
-            self.runScan(task.getNode(), self)
+            self.engine.runScan(task.getNode(), self)
             
         
     def scan(self, node: GraphNode):
@@ -450,17 +452,16 @@ class Scheduler:
             if self.parent != None:
                 self.parent.completed(scheduleNode)
             else:
-                print("Running GN")
+                print("This should not happen!")
         elif isinstance(graphnode, GraphNested):
             # Need start new Scheduler
             if isinstance(graphnode, GraphPythonAgent):
                 # Start scheduler for PythonAgent child
-                child = Scheduler(graphnode, dict(), self, self.engine)
+                child = Scheduler(graphnode, self, self.engine)
                 self.engine.queueItem(scheduleNode, child)
                 return
             
             inVarMap = scheduleNode.getInVarMap()            
-
             # If we are calling another graph, then need to do some
             # variable remapping
             if isinstance(graphnode, GraphCall) and graphnode.inMap != None:
@@ -473,8 +474,8 @@ class Scheduler:
                         calleevar = graphnode.inMap[v]
                     inVarMap[v] = oldVarMap[calleevar]
 
-            child = Scheduler(graphnode, inVarMap, self, self.engine)
-            child.scan(graphnode.getStart())
+            child = Scheduler(graphnode, self, self.engine)
+            child.addTask(graphnode.getStart(), None, varMap = inVarMap)
         else:
             #Schedule the job
             self.engine.queueItem(scheduleNode, self)

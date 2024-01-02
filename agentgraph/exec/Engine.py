@@ -54,8 +54,8 @@ class Engine:
         self.loop.call_soon_threadsafe(self.loop.stop)
         self.event_loop_thread.join()
 
-async def wrap_scan(scheduler, graph):
-    scheduler.scan(graph.start)
+async def wrap_scan(scheduler: 'agentgraph.exec.Scheduler', graph: GraphNode):
+    scheduler.scan(graph)
 
 async def create_queue() -> janus.Queue:
     queue = janus.Queue()
