@@ -4,7 +4,7 @@ import traceback
 import sys
 
 from threading import Thread
-from agentgraph.core.graph import GraphNode, GraphPair, GraphNested, graph
+from agentgraph.core.graph import GraphNode, GraphPair, GraphNested, VarMap
 
 
 class Engine:

@@ -5,18 +5,18 @@ from agentgraph.core.Prompts import Prompts
 from agentgraph.core.Var import Var
 from agentgraph.core.MutVar import MutVar
 from agentgraph.core.BoolVar import BoolVar
-from agentgraph import graph
+from agentgraph import VarMap
 import agentgraph
 import os
 import time
 
 eng = Engine()
-g = graph()
+g = VarMap()
 scheduler = agentgraph.getRootScheduler(eng)
 model = LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
-varA = g.createConversation("A")
-varB = g.createConversation("B")
-varLoop = g.createBoolVar("loop", True)
+varA = g.mapToConversation("A")
+varB = g.mapToConversation("B")
+varLoop = g.mapToBool("loop", True)
 ovarA = Var("OA")
 ovarB = Var("OB")
 prompts = Prompts("./examples/prompts/")

@@ -2,7 +2,7 @@ import asyncio
 import traceback
 import sys
 from agentgraph.exec.Engine import Engine
-from agentgraph.core.graph import graph, GraphCall, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent
+from agentgraph.core.graph import VarMap, GraphCall, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent
 from agentgraph.core.Var import Var
 import agentgraph.config
 
@@ -260,15 +260,15 @@ class Scheduler:
         self.startTasks = None
         self.endTasks = None
         
-    def addTask(self, node: GraphNode, g: graph, varMap: dict = None):
+    def addTask(self, node: GraphNode, vm: VarMap, varMap: dict = None):
         """
         Adds a new task for the scheduler to run.
         node - a GraphNode to run
         varMap - a map of Vars to values
         """
 
-        if g != None:
-            varMap = g.getVarMap()
+        if vm != None:
+            varMap = vm.getVarMap()
         taskNode = TaskNode(node, varMap)
 
         if self.endTasks == None:

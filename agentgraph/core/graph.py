@@ -11,18 +11,26 @@ class GraphNode:
     """Base Node For Nested CFG Representation of Program"""
     
     def __init__(self):
-        self.next = [None]
+        self._next = [None]
 
     def setNext(self, index: int, n: 'GraphNode'):
-        self.next[index] = n
+        """Sets index'th successor node in CFG"""
+        
+        self._next[index] = n
         
     def getNext(self, index: int) -> 'GraphNode':
-        return self.next[index]
+        """Get index'th successor node in CFG"""
+        
+        return self._next[index]
 
     def getReadVars(self) -> list:
+        """Gets list of variables this CFG node may read from."""
+        
         return []
 
     def getWriteVars(self) -> list:
+        """Gets list of variables this CFG node may write to."""
+
         return []
 
 
@@ -32,55 +40,59 @@ class GraphNested(GraphNode):
     
     def __init__(self, _start: GraphNode):
         super().__init__()
-        self.start = _start
-        self.readVars = None
-        self.writeVars = None
+        self._start = _start
+        self._readVars = None
+        self._writeVars = None
 
     def getStart(self) -> GraphNode:
-        return self.start
+        """Gets first operation from child CFG."""
+        
+        return self._start
 
     def getReadVars(self) -> list:
-        return self.readVars
+        return self._readVars
         
     def getWriteVars(self) -> list:
-        return self.writeVars
+        return self._writeVars
     
     def setReadVars(self, readVars: list):
-        self.readVars = readVars
+        self._readVars = readVars
         
     def setWriteVars(self, writeVars: list):
-        self.writeVars = writeVars
+        self._writeVars = writeVars
 
 class GraphCall(GraphNested):
-    """Calls another graph"""
+    """Calls another graph."""
 
     def __init__(self, inMap: dict, outMap: dict):
         """inMap maps caller parameters Vars to the callee Vars that provide the value.
+
         outMap maps caller return Vars to the callee Vars that should be assigned."""
+        
         super().__init__(None)
-        self.call = None
-        self.inMap = None
-        self.outMap = None
+        self._call = None
+        self._inMap = None
+        self._outMap = None
 
     def getStart(self) -> GraphNode:
-        return self.call.getStart()
+        return self._call.getStart()
         
     def setCallee(self, call: GraphNode):
-        self.call = call
+        self._call = call
 
     def setInMap(self, inMap: dict):
-        self.inMap = inMap
+        self._inMap = inMap
 
     def setOutMap(self, outMap: dict):
-        self.outMap = outMap
+        self._outMap = outMap
         
     def getReadVars(self) -> list:
         varList = list()
-        for v in self.call.readVars():
+        for v in self._call.readVars():
             newvar = v
-            if self.inMap != None:
-                if v in self.inMap:
-                    newvar = self.inMap[v]
+            if self._inMap != None:
+                if v in self._inMap:
+                    newvar = self._inMap[v]
                 
             if not newvar in varList:
                 varList.append(newvar)
@@ -88,11 +100,11 @@ class GraphCall(GraphNested):
         
     def getWriteVars(self) -> list:
         varList = list()
-        for v in self.call.writeVars():
+        for v in self._call.writeVars():
             newvar = v
-            if self.outMap != None:
-                if v in self.outMap:
-                    newvar = self.outMap[v]
+            if self._outMap != None:
+                if v in self._outMap:
+                    newvar = self._outMap[v]
                 
             if not newvar in varList:
                 varList.append(newvar)
@@ -124,7 +136,8 @@ class GraphLLMAgent(GraphNode):
         return [self.outVar]
 
     async def execute(self, varMap: dict) -> dict:
-        """ Actually execute LLM Agent."""
+        """Execute LLM Agent.  varMap maps Vars to the values that
+        should be used for the execution."""
 
         if self.msg != None:
             output = self.msg.exec(varMap)
@@ -155,6 +168,16 @@ class GraphPythonAgent(GraphNested):
     """Run some action.  This is a Python Agent."""
     
     def __init__(self, pythonFunc, inVars: dict, outVars: dict):
+        """inVars is a map from names to Var objects that provide
+        values for those variables.  The python function will be
+        passed a dict that maps these names to values.
+
+        The python function is expected to return a dict that maps
+        names to values.  The outVars mapping maps those names to the
+        Variables whose values should be updated with the values
+        returned by the Python function.
+        """
+        
         super().__init__()
         self.pythonFunc = pythonFunc
         self.inVars = inVars if inVars != None else {}
@@ -167,7 +190,10 @@ class GraphPythonAgent(GraphNested):
         return self.outVars.values()
 
     async def execute(self, scheduler: 'agentgraph.exec.Scheduler.Scheduler', varMap: dict) -> dict:
-        """ Actually execute Python Agent."""
+        """Execute Python Agent.  Takes as input the scheduler object
+        for the python agent task (in case it generates child tasks)
+        and the varMap which maps Vars to the values to be used when
+        executing the python agent."""
 
         # First, compose dictionary for inVars (str -> Var) and varMap
         # (Var -> Value) to generate inMap (str -> Value)
@@ -177,7 +203,7 @@ class GraphPythonAgent(GraphNested):
             inMap[name] = varMap[var]
         
         # Next, actually call the formatFunc to generate the prompt
-        omap = await self.pythonFunc(inMap)
+        omap = await self.pythonFunc(scheduler, inMap)
 
         # Construct outMap (Var -> Object) from outVars (name -> Var)
         # and omap (name -> Value)
@@ -204,7 +230,7 @@ class GraphNodeBranch(GraphNode):
     
     def __init__(self, branchVar):
         super().__init__()
-        self.next.append(None)
+        self._next.append(None)
         self.branchVar = branchVar
         
     def getBranchVar(self) -> BoolVar:
@@ -234,35 +260,84 @@ def checkInVars(inVars: dict):
         if var.isMutable() and var.isRead() and var.getVar() in mutSet:
             raise RuntimeException(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
     
-class graph:
+class VarMap:
     def __init__(self):
-        self.varMap = dict()
+        self._varMap = dict()
+        self._nameToVar = dict()
 
-    def getVarMap(self) -> dict:
-        return self.varMap
+    def _getVariable(self, name: str) -> Var:
+        if not name in self._nameToVar:
+            self._nameToVar[name] = Var(name)
+        return self._nameToVar[name]
+
+    def _getBoolVariable(self, name: str) -> Var:
+        if not name in self._nameToVar:
+            self._nameToVar[name] = BoolVar(name)
+        return self._nameToVar[name]
+
+    def _getMutVariable(self, name: str) -> Var:
+        if not name in self._nameToVar:
+            self._nameToVar[name] = MutVar(name)
+        return self._nameToVar[name]
         
-    def createConversation(self, name: str) -> MutVar:
-        conv = Conversation()
-        var = MutVar(name)
-        self.varMap[var] = conv
+    def getVarMap(self) -> dict:
+        return self._varMap
+        
+    def mapToConversation(self, name: str, val: Conversation = None) -> MutVar:
+        var = self._getMutVariable(name)
+        if val is None:
+            val = Conversation()
+        self._varMap[var] = val
         return var
 
-    def createBoolVar(self, name: str, val: bool) -> BoolVar:
-        var = BoolVar(name)
-        self.varMap[var] = val
+    def mapToFileStore(self, name: str, val: FileStore = None) -> MutVar:
+        var = self._getMutVariable(name)
+        if val is None:
+            val = FileStore()
+        self._varMap[var] = val
         return var
 
-    def createFileStore(self, name: str) -> MutVar:
-        filestore = FileStore()
-        var = MutVar(name)
-        self.varMap[var] = filestore
+    def mapToBool(self, name: str, val: bool) -> BoolVar:
+        var = self._getBoolVariable(name)
+        self._varMap[var] = val
+        return var
+    
+    def mapToString(self, name: str, val: str) -> Var:
+        var = self._getVariable(name)
+        self._varMap[var] = val
         return var
     
 def createLLMAgent(model: LLMModel, conversation: Var, outVar: Var, msg: MsgSeq = None, formatFunc = None, inVars: dict = None) -> GraphPair:
+    """Creates a LLM agent task.
+
+    Arguments:
+    model --- a Model object for performing the LLM call.
+    conversation --- a Variable that will point to the conversation object for this LLM.
+    outVar --- a Variable that will have the value of the output of the LLM.
+    msg --- a MsgSeq object that can be used to generate the input to the LLM. (default None)
+    formatFunc --- a Python function that generates the input to the LLM. (default None)
+    inVars --- a dict mapping from names to Vars for the input to the formatFunc Python function. (default None)
+
+    You must either provide a msg object or a formatFunc object (and not both).
+    """
+
+    assert(msg is not None or formatFunc is not None, "Either msg or formatFunc must be specified.")
+    assert(msg is None or formatFunc is None, "Cannot specify both msg and formatFunc.")
+        
+    checkInVars(inVars)
     llmAgent = GraphLLMAgent(model, conversation, outVar, msg, formatFunc, inVars)
     return GraphPair(llmAgent, llmAgent)
 
 def createPythonAgent(pythonFunc, inVars: dict = None, outVars: dict = None) -> GraphPair:
+    """Creates a Python agent task.
+    
+    Arguments:
+    pythonFunc --- a Python function to be executed.
+    inVars --- a dict mapping from names to Vars for the input to the pythonFunc Python function. (default None)
+    outVars --- a dict mapping from names to Vars for the output of the pythonFunc Python function.  (default None)
+    """
+    
+    checkInVars(inVars)
     pythonAgent = GraphPythonAgent(pythonFunc, inVars, outVars)
     return GraphPair(pythonAgent, pythonAgent)
     
