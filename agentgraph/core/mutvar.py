@@ -1,4 +1,4 @@
-from agentgraph.core.Var import Var
+from agentgraph.core.var import Var
 
 class MutVar(Var):
     def __init__(self, name: str):

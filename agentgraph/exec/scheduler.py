@@ -5,7 +5,7 @@ import traceback
 
 from agentgraph.exec.engine import Engine
 from agentgraph.core.graph import VarMap, GraphCall, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent, GraphVarWait
-from agentgraph.core.Var import Var
+from agentgraph.core.var import Var
 import agentgraph.config
 
 class ScheduleNode:

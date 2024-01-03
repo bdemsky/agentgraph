@@ -1,9 +1,9 @@
-from agentgraph.core.LLMModel import LLMModel
-from agentgraph.core.Conversation import Conversation
-from agentgraph.core.Prompts import Prompts
-from agentgraph.core.Var import Var
-from agentgraph.core.MutVar import MutVar
-from agentgraph.core.BoolVar import BoolVar
+from agentgraph.core.llmmodel import LLMModel
+from agentgraph.core.conversation import Conversation
+from agentgraph.core.prompts import Prompts
+from agentgraph.core.var import Var
+from agentgraph.core.mutvar import MutVar
+from agentgraph.core.boolvar import BoolVar
 from agentgraph import VarMap
 import agentgraph
 import os

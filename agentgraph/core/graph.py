@@ -1,13 +1,13 @@
 import asyncio
 import threading
 
-from agentgraph.core.BoolVar import BoolVar
-from agentgraph.core.Conversation import Conversation
-from agentgraph.core.FileStore import FileStore
-from agentgraph.core.LLMModel import LLMModel
-from agentgraph.core.MsgSeq import MsgSeq
-from agentgraph.core.MutVar import MutVar
-from agentgraph.core.Var import Var
+from agentgraph.core.boolvar import BoolVar
+from agentgraph.core.conversation import Conversation
+from agentgraph.core.filestore import FileStore
+from agentgraph.core.llmmodel import LLMModel
+from agentgraph.core.msgseq import MsgSeq
+from agentgraph.core.mutvar import MutVar
+from agentgraph.core.var import Var
 
 class GraphNode:
     """Base Node For Nested CFG Representation of Program"""

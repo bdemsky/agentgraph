@@ -43,7 +43,7 @@ class Engine:
         asyncio.run_coroutine_threadsafe(wrap_scan(scheduler, graph), self.loop).result()
         return
 
-    def queueItem(self, node: 'agentgraph.core.ScheduleNode', scheduler):
+    def queueItem(self, node: 'agentgraph.exec.scheduler.ScheduleNode', scheduler):
         self.queue.async_q.put_nowait((node, scheduler))
         
     def shutdown(self):
