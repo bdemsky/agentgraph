@@ -39,7 +39,7 @@ class Engine:
 
             self.queue.async_q.task_done()
 
-    def runScan(self, graph: GraphNode, scheduler: 'agentgraph.exec.Scheduler'):
+    def runScan(self, graph: GraphNode, scheduler: 'agentgraph.exec.scheduler.Scheduler'):
         asyncio.run_coroutine_threadsafe(wrap_scan(scheduler, graph), self.loop).result()
         return
 
@@ -54,7 +54,7 @@ class Engine:
         self.loop.call_soon_threadsafe(self.loop.stop)
         self.event_loop_thread.join()
 
-async def wrap_scan(scheduler: 'agentgraph.exec.Scheduler', graph: GraphNode):
+async def wrap_scan(scheduler: 'agentgraph.exec.scheduler.Scheduler', graph: GraphNode):
     scheduler.scan(graph)
 
 async def create_queue() -> janus.Queue:

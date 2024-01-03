@@ -5,7 +5,6 @@ to mutable objects).  Only one variable allowed to reference mutable
 object.
 
 Short Term Todo Items:
-** Add future support for reading vars from python code...
 
 0. Start to do something with tool...
 1. Play with APIs to limit red tape.

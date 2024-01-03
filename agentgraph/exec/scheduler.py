@@ -3,7 +3,7 @@ import sys
 import threading
 import traceback
 
-from agentgraph.exec.Engine import Engine
+from agentgraph.exec.engine import Engine
 from agentgraph.core.graph import VarMap, GraphCall, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent, GraphVarWait
 from agentgraph.core.Var import Var
 import agentgraph.config

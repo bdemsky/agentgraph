@@ -227,7 +227,7 @@ class GraphPythonAgent(GraphNested):
     def getWriteVars(self) -> list:
         return self.outVars.values()
 
-    async def execute(self, scheduler: 'agentgraph.exec.Scheduler.Scheduler', varMap: dict) -> dict:
+    async def execute(self, scheduler: 'agentgraph.exec.scheduler.Scheduler', varMap: dict) -> dict:
         """Execute Python Agent.  Takes as input the scheduler object
         for the python agent task (in case it generates child tasks)
         and the varMap which maps Vars to the values to be used when
