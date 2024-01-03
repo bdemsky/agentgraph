@@ -1,4 +1,6 @@
 import asyncio
+import threading
+
 from agentgraph.core.BoolVar import BoolVar
 from agentgraph.core.Conversation import Conversation
 from agentgraph.core.FileStore import FileStore
@@ -33,7 +35,43 @@ class GraphNode:
 
         return []
 
+class GraphVarWait(GraphNode):
+    def __init__(self, readList: list, condVar: threading.Condition):
+        self._readList = readList
+        self._valMap = dict()
+        self._condVar = condVar
+        self._done = False
 
+    def setDone(self):
+        self._done = True
+        
+    def isDone(self) -> bool:
+        return self._done
+        
+    def __set__(self, obj: Var, value):
+        self._valMap[obj] = value
+
+    def __get__(self, obj: Var):
+        return self._valMap[obj]
+
+    def getCondVar(self):
+        return self._condVar
+    
+    def getReadVars(self) -> list:
+        return self._readList
+
+    async def execute(self, varMap: dict) -> dict:
+        """Execute CondVar Wait."""
+
+        for v in self._readList:
+            self[v] = varMap[v]
+
+        with self._condVar:
+            # Set our done flag
+            self.setDone()
+            # Wake the waiters
+            self._condVar.notify_all()
+    
 class GraphNested(GraphNode):
     """Nested CFG Node.  Used for control flow constructs such as
     If-Then-Else or a Loop."""
@@ -321,8 +359,8 @@ def createLLMAgent(model: LLMModel, conversation: Var, outVar: Var, msg: MsgSeq 
     You must either provide a msg object or a formatFunc object (and not both).
     """
 
-    assert(msg is not None or formatFunc is not None, "Either msg or formatFunc must be specified.")
-    assert(msg is None or formatFunc is None, "Cannot specify both msg and formatFunc.")
+    assert msg is not None or formatFunc is not None, "Either msg or formatFunc must be specified."
+    assert msg is None or formatFunc is None, "Cannot specify both msg and formatFunc."
         
     checkInVars(inVars)
     llmAgent = GraphLLMAgent(model, conversation, outVar, msg, formatFunc, inVars)

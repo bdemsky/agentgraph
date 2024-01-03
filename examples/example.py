@@ -1,4 +1,3 @@
-from agentgraph.exec.Engine import Engine
 from agentgraph.core.LLMModel import LLMModel
 from agentgraph.core.Conversation import Conversation
 from agentgraph.core.Prompts import Prompts
@@ -10,9 +9,8 @@ import agentgraph
 import os
 import time
 
-eng = Engine()
 g = VarMap()
-scheduler = agentgraph.getRootScheduler(eng)
+scheduler = agentgraph.getRootScheduler()
 model = LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
 varA = g.mapToConversation("A")
 varB = g.mapToConversation("B")
@@ -27,4 +25,4 @@ agentA = agentgraph.createLLMAgent(model, varA, ovarA, msg = sys > (pA + varB) &
 agentB = agentgraph.createLLMAgent(model, varB, ovarB, msg = sys > varA & varB)
 loop = agentgraph.createDoWhile(agentA | agentB, varLoop)
 scheduler.addTask(loop.start, g)
-eng.shutdown() 
+scheduler.shutdown() 

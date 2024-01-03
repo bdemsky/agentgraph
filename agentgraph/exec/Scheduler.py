@@ -1,8 +1,10 @@
 import asyncio
-import traceback
 import sys
+import threading
+import traceback
+
 from agentgraph.exec.Engine import Engine
-from agentgraph.core.graph import VarMap, GraphCall, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent
+from agentgraph.core.graph import VarMap, GraphCall, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent, GraphVarWait
 from agentgraph.core.Var import Var
 import agentgraph.config
 
@@ -259,7 +261,21 @@ class Scheduler:
         self.windowStall = None
         self.startTasks = None
         self.endTasks = None
+        self.condVar = threading.Condition()
+
+    def readVariable(self, var: Var):
+        """
+        Reads value of variable, stalling if needed.
+        """
         
+        gvar = GraphVarWait([var], self.condVar)
+        self.addTask(gvar, None, dict())
+        #Wait for our task to finish
+        with self.condVar:
+            while not gvar.isDone():
+                self.condVar.wait()
+        return gvar[var]
+                
     def addTask(self, node: GraphNode, vm: VarMap, varMap: dict = None):
         """
         Adds a new task for the scheduler to run.
@@ -275,8 +291,9 @@ class Scheduler:
             self.startTasks = taskNode
         else:
             self.endTasks.setNext(taskNode)
-            
+
         self.endTasks = taskNode
+            
         if (self.startTasks == taskNode):
             self.runTask(taskNode, self.scope == None)
             
@@ -492,3 +509,12 @@ class Scheduler:
             self.scan(graphnode)
         else:
             self.startBaseTask(scheduleNode, graphnode)
+
+    def shutdown(self):
+        """Shutdown the engine.  Care should be taken to ensure engine
+        is only shutdown once."""
+
+        if (self.parent is not None):
+            raise RuntimeException("Calling shutdown on non-parent Scheduler.")
+        else:
+            self.engine.shutdown()
