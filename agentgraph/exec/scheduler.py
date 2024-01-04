@@ -71,7 +71,7 @@ class ScheduleNode:
     def getOutVarVal(self, var: Var):
         """Returns the output value for the variable var."""
         
-        self.outVarMap[var]
+        return self.outVarMap[var]
 
     def setInVarVal(self, var: Var, val):
         """Returns the input value for the variable var.  If we are
@@ -416,10 +416,10 @@ class Scheduler:
                     #If variable is mutable, register the heap dependence
                     if handleReference(n, var, val) == 0:
                         #Only do decrement if we didn't just transfer the count to a heap dependence
-                        decDepCount(n)
+                        self.decDepCount(n)
                 else:
                     #No heap dependence, so decrement count
-                    decDepCount(n)
+                    self.decDepCount(n)
         #Release our heap dependences
         inVarValMap = node.getInVarMap()
         for var in inVarValMap:

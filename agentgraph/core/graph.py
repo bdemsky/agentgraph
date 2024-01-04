@@ -37,6 +37,7 @@ class GraphNode:
 
 class GraphVarWait(GraphNode):
     def __init__(self, readList: list, condVar: threading.Condition):
+        super().__init__()
         self._readList = readList
         self._valMap = dict()
         self._condVar = condVar
@@ -48,10 +49,10 @@ class GraphVarWait(GraphNode):
     def isDone(self) -> bool:
         return self._done
         
-    def __set__(self, obj: Var, value):
+    def __setitem__(self, obj: Var, value):
         self._valMap[obj] = value
 
-    def __get__(self, obj: Var):
+    def __getitem__(self, obj: Var):
         return self._valMap[obj]
 
     def getCondVar(self):
@@ -191,7 +192,6 @@ class GraphLLMAgent(GraphNode):
         print(output)
         # Call the model
         outStr = await self.model.sendData(output)
-        print(outStr)
 
         # Update conversation
         varMap[self.conversation].push(outStr)

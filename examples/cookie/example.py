@@ -13,16 +13,27 @@ g = VarMap()
 scheduler = agentgraph.getRootScheduler()
 model = LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
 varA = g.mapToConversation("A")
-varB = g.mapToConversation("B")
-varLoop = g.mapToBool("loop", True)
-ovarA = Var("OA")
-ovarB = Var("OB")
+
+ovarA = Var("Recipe")
 prompts = Prompts("./examples/prompts/")
 sys = prompts.createPrompt("System")
 pA = prompts.createPrompt("PromptA")
+agentA = agentgraph.createLLMAgent(model, varA, ovarA, msg = sys > pA & varA)
+scheduler.addTask(agentA.start, g)
+ovarR = ovarA
 
-agentA = agentgraph.createLLMAgent(model, varA, ovarA, msg = sys > (pA + varB) & varA)
-agentB = agentgraph.createLLMAgent(model, varB, ovarB, msg = sys > varA & varB)
-loop = agentgraph.createDoWhile(agentA | agentB, varLoop)
-scheduler.addTask(loop.start, g)
+for i in range(2):
+    pB = prompts.createPrompt("PromptB", {ovarR})
+    gnew = VarMap()
+    varB = gnew.mapToConversation("B")
+    ovarB = Var("Recipe")
+    agentB = agentgraph.createLLMAgent(model, varB, ovarB, msg = sys > pB & varB)
+    scheduler.addTask(agentB.start, gnew)
+    ovarR = ovarB
+    
+print("Tasks Enqueued")
+print(scheduler.readVariable(ovarA))
+print("-----")
+print(scheduler.readVariable(ovarB))
+
 scheduler.shutdown() 
