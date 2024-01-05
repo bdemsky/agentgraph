@@ -6,7 +6,7 @@ from agentgraph.core.var import Var
 from agentgraph.core.mutvar import MutVar
 from agentgraph.core.boolvar import BoolVar
 
-def getRootScheduler(eng: 'agentgraph.exec.engine.Engine' = None):
+def getRootScheduler(model, eng: 'agentgraph.exec.engine.Engine' = None):
     """Creates a root scheduler."""
     
     from agentgraph.exec.scheduler import Scheduler, setCurrentTask, setCurrentScheduler
@@ -15,7 +15,7 @@ def getRootScheduler(eng: 'agentgraph.exec.engine.Engine' = None):
     if eng is None:
         eng = Engine()
     
-    scheduler = Scheduler(None, None, eng)
+    scheduler = Scheduler(model, None, None, eng)
     setCurrentTask(None)
     setCurrentScheduler(scheduler)
     return scheduler

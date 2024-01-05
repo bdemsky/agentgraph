@@ -154,11 +154,11 @@ class GraphCall(GraphNested):
 class GraphLLMAgent(GraphNode):
     """Run some action.  This is a LLM Agent."""
     
-    def __init__(self, model: LLMModel, conversation: Var, outVar: Var,  msg: MsgSeq, formatFunc, inVars: dict):
+    def __init__(self, conversation: Var, outVar: Var,  model: LLMModel, msg: MsgSeq, formatFunc, inVars: dict):
         super().__init__()
-        self.model = model
         self.conversation = conversation
         self.outVar = outVar
+        self.model = model
         self.msg = msg
         self.formatFunc = formatFunc
         self.inVars = inVars if inVars != None else {}
@@ -193,7 +193,12 @@ class GraphLLMAgent(GraphNode):
             output = await self.formatFunc(inMap)
         print(output)
         # Call the model
-        outStr = await self.model.sendData(output)
+        model = self.model
+        if model is None:
+            from agentgraph.exec.scheduler import getCurrentScheduler
+            model = getCurrentScheduler().getDefaultModel()
+        
+        outStr = await model.sendData(output)
 
         # Update conversation
         if self.conversation is not None:
@@ -353,17 +358,17 @@ class VarMap:
         self._varMap[var] = val
         return var
     
-def createLLMAgent(model: LLMModel, conversation: Var, outVar: Var, msg: MsgSeq = None, formatFunc = None, inVars: dict = None) -> GraphPair:
+def createLLMAgent(conversation: Var, outVar: Var, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, inVars: dict = None) -> GraphPair:
     """Creates a LLM agent task.
 
     Arguments:
-    model --- a Model object for performing the LLM call.
     conversation --- a Variable that will point to the conversation object for this LLM.
     outVar --- a Variable that will have the value of the output of the LLM.
     msg --- a MsgSeq object that can be used to generate the input to the LLM. (default None)
     formatFunc --- a Python function that generates the input to the LLM. (default None)
     inVars --- a dict mapping from names to Vars for the input to the formatFunc Python function. (default None)
-
+    model --- a Model object for performing the LLM call (default None).
+    
     You must either provide a msg object or a formatFunc object (and not both).
     """
 
@@ -371,7 +376,7 @@ def createLLMAgent(model: LLMModel, conversation: Var, outVar: Var, msg: MsgSeq 
     assert msg is None or formatFunc is None, "Cannot specify both msg and formatFunc."
         
     checkInVars(inVars)
-    llmAgent = GraphLLMAgent(model, conversation, outVar, msg, formatFunc, inVars)
+    llmAgent = GraphLLMAgent(conversation, outVar, model, msg, formatFunc, inVars)
     return GraphPair(llmAgent, llmAgent)
 
 def createPythonAgent(pythonFunc, inVars: dict = None, outVars: dict = None) -> GraphPair:

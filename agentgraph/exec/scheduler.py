@@ -8,6 +8,7 @@ from agentgraph.exec.engine import Engine
 from agentgraph.core.graph import VarMap, GraphCall, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent, GraphVarWait
 from agentgraph.core.mutvar import MutVar
 from agentgraph.core.var import Var
+from agentgraph.core.llmmodel import LLMModel
 import agentgraph.config
 
 currentTask = contextvars.ContextVar('currentTask', default = None)
@@ -20,10 +21,10 @@ def setCurrentTask(task):
     currentTask.set(task)
 
 def getCurrentScheduler():
-    return currentTask.get()
+    return currentScheduler.get()
 
 def setCurrentScheduler(scheduler):
-    currentTask.set(scheduler)
+    currentScheduler.set(scheduler)
 
 class ScheduleNode:
     """Schedule node to track dependences for a task instance."""
@@ -260,9 +261,11 @@ class TaskNode:
 class Scheduler:
     """Scheduler class.  This does all of the scheduling for a given Nested Graph."""
     
-    def __init__(self, scope: GraphNested, parent: 'Scheduler', engine: Engine):
+    def __init__(self, model: LLMModel, scope: GraphNested, parent: 'Scheduler', engine: Engine):
 
         """Object initializer for a new Scheduler:
+        model - the model we want to use by default
+
         scope - the scope we are scheduling
 
         parent - the Scheduler for our parent scope or None
@@ -270,6 +273,7 @@ class Scheduler:
         engine - the execution Engine we use
         """
 
+        self.model = model
         self.scope = scope
         self.varMap = dict()
         self.parent = parent
@@ -283,6 +287,9 @@ class Scheduler:
         self.condVar = threading.Condition()
         self.dummyVar = MutVar("Dummy$$$$$")
 
+    def getDefaultModel(self) -> LLMModel:
+        return self.model
+        
     def objAccess(self, mutable):
         """
         Waits for object access
@@ -540,7 +547,7 @@ class Scheduler:
             # Need start new Scheduler
             if isinstance(graphnode, GraphPythonAgent):
                 # Start scheduler for PythonAgent child
-                child = Scheduler(graphnode, self, self.engine)
+                child = Scheduler(self.model, graphnode, self, self.engine)
                 self.engine.queueItem(scheduleNode, child)
                 return
             
@@ -557,7 +564,7 @@ class Scheduler:
                         calleevar = graphnode.inMap[v]
                     inVarMap[v] = oldVarMap[calleevar]
 
-            child = Scheduler(graphnode, self, self.engine)
+            child = Scheduler(self.model, graphnode, self, self.engine)
             child.addTask(graphnode.getStart(), None, varMap = inVarMap)
         else:
             #Schedule the job
