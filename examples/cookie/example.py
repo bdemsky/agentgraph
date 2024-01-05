@@ -24,8 +24,8 @@ for i in range(2):
     ovarR = ovarB
     
 print("Tasks Enqueued")
-print(scheduler.readVariable(ovarA))
+print(ovarA.getValue())
 print("-----")
-print(scheduler.readVariable(ovarB))
+print(ovarB.getValue())
 
 scheduler.shutdown() 

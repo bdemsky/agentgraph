@@ -19,3 +19,11 @@ class Var(MsgSeq):
 
     def exec(self, varsMap: dict):
         return varsMap[self]
+
+    def getValue(self):
+        """Method that will return the value the variable is assigned
+        by the most recent dispatched task that writes to it.
+        """
+        
+        from agentgraph.exec.scheduler import getCurrentScheduler
+        return getCurrentScheduler().readVariable(self)
