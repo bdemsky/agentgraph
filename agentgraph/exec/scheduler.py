@@ -1,12 +1,29 @@
 import asyncio
+import contextvars
 import sys
 import threading
 import traceback
 
 from agentgraph.exec.engine import Engine
 from agentgraph.core.graph import VarMap, GraphCall, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent, GraphVarWait
+from agentgraph.core.mutvar import MutVar
 from agentgraph.core.var import Var
 import agentgraph.config
+
+currentTask = contextvars.ContextVar('currentTask', default = None)
+currentScheduler = contextvars.ContextVar('scheduler', default = None)
+
+def getCurrentTask():
+    return currentTask.get()
+
+def setCurrentTask(task):
+    currentTask.set(task)
+
+def getCurrentScheduler():
+    return currentTask.get()
+
+def setCurrentScheduler(scheduler):
+    currentTask.set(scheduler)
 
 class ScheduleNode:
     """Schedule node to track dependences for a task instance."""
@@ -91,7 +108,9 @@ class ScheduleNode:
             self.outVarMap = await self.node.execute(scheduler, self.getInVarMap())
         else:
             self.outVarMap = await self.node.execute(self.getInVarMap())
-        
+
+dummyTask = ScheduleNode(None)
+            
 class ScoreBoardNode:
     """ScoreBoard linked list node to track heap dependences."""
 
@@ -262,7 +281,20 @@ class Scheduler:
         self.startTasks = None
         self.endTasks = None
         self.condVar = threading.Condition()
+        self.dummyVar = MutVar("Dummy$$$$$")
 
+    def objAccess(self, mutable):
+        """
+        Waits for object access
+        """
+        gvar = GraphVarWait([self.dummyVar], self.condVar)
+        varDict = dict()
+        varDict[gvar] = mutable
+        self.addTask(gvar, None, varDict)
+        with self.condVar:
+            while not gvar.isDone():
+                self.condVar.wait()
+        
     def readVariable(self, var: Var):
         """
         Reads value of variable, stalling if needed.
@@ -293,10 +325,44 @@ class Scheduler:
             self.endTasks.setNext(taskNode)
 
         self.endTasks = taskNode
-            
+
+        self.checkForMutables(node, varMap)
+        
         if (self.startTasks == taskNode):
             self.runTask(taskNode, self.scope == None)
+
+    def checkForMutables(self, node: GraphNode, varMap: dict):
+        """ Handle and references to mutable objects."""
+        writeSet = set()
+        currSchedulerTask = getCurrentTask()
+        while node is not None:
+            for v in node.getReadVars():
+                # See if v is written by some prior task and thus by
+                # assumption is not a mutable the parent has access
+                # to.
+                if v in writeSet:
+                    continue
+                if v in varMap:
+                    value = varMap[v]
+                elif v in self.varMap:                
+                    value = self.varMap[v]
+                else:
+                    continue
+                
+                if isinstance(value, agentgraph.core.mutable.Mutable):
+                    mutTask = value.getTask()
+                    # See if parent owns this Mutable.  If so, we know
+                    # there will be no race when we revoke ownership
+                    # by setting the owner to dummyTask.  If the
+                    # parent doesn't own the Mutable, it won't be
+                    # racing with children, and so we have no problem.
+                    if mutTask == currTask:
+                        value.setTask(dummyTask)
+                    
+            writeSet.update(node.getWriteVars())
+            node = node.getNext(0)
             
+        
     def runTask(self, task: TaskNode, fromThread: bool):
         """Starts up the first task."""
         for var in task.getVarMap():

@@ -6,7 +6,6 @@ import sys
 from threading import Thread
 from agentgraph.core.graph import GraphNode, GraphPair, GraphNested, VarMap
 
-
 class Engine:
     def __init__(self, concurrency: int = 20):
         self.loop = asyncio.new_event_loop()
@@ -24,13 +23,21 @@ class Engine:
         self.loop.run_forever()
 
     async def worker(self, i):
+        import agentgraph.exec.scheduler
+        lastscheduler = None
+        
         while True:
             item = await self.queue.async_q.get()
             if item == None:
                 self.queue.async_q.task_done()
                 break
             scheduleNode, scheduler = item
+            agentgraph.exec.scheduler.setCurrentTask(scheduleNode)
+            if scheduler != lastscheduler:
+                agentgraph.exec.scheduler.setCurrentScheduler(scheduler)
+                lastscheduler = scheduler
             try:
+                
                 await scheduleNode.run(scheduler)
                 scheduler.completed(scheduleNode)
             except Exception as e:

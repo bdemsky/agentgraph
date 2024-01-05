@@ -3,9 +3,10 @@ import threading
 
 from agentgraph.core.boolvar import BoolVar
 from agentgraph.core.conversation import Conversation
-from agentgraph.core.filestore import FileStore
+from agentgraph.data.filestore import FileStore
 from agentgraph.core.llmmodel import LLMModel
 from agentgraph.core.msgseq import MsgSeq
+from agentgraph.core.mutable import Mutable
 from agentgraph.core.mutvar import MutVar
 from agentgraph.core.var import Var
 
@@ -164,7 +165,8 @@ class GraphLLMAgent(GraphNode):
 
     def getReadVars(self) -> list:
         l = list(self.inVars.values())
-        l.append(self.conversation)
+        if self.conversation is not None:
+            l.append(self.conversation)
         if self.msg != None:
             for var in self.msg.getVars():
                 if not var in l:
@@ -194,7 +196,8 @@ class GraphLLMAgent(GraphNode):
         outStr = await self.model.sendData(output)
 
         # Update conversation
-        varMap[self.conversation].push(outStr)
+        if self.conversation is not None:
+            varMap[self.conversation].push(outStr)
         
         # Put result in output map
         outMap = dict()
@@ -335,6 +338,11 @@ class VarMap:
         self._varMap[var] = val
         return var
 
+    def mapToMutable(self, name: str, val: Mutable) -> MutVar:
+        var = self._getMutVariable(name)
+        self._varMap[var] = val
+        return var
+    
     def mapToBool(self, name: str, val: bool) -> BoolVar:
         var = self._getBoolVariable(name)
         self._varMap[var] = val

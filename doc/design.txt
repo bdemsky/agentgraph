@@ -4,6 +4,19 @@ New syntax rules...
 to mutable objects).  Only one variable allowed to reference mutable
 object.
 
+
+---
+Working with mutable data structures...
+
+Each mutable object has owner task (scheduleNode)...  If we start a
+task that will access a mutable object and we currently own a mutable
+object, we set the mutable object's owner to a dummy task.
+
+When a task starts we set the mutable object's owner field to the
+current task...  When a mutable object is allocated, it's owner is the
+current task.
+
+
 Short Term Todo Items:
 
 0. Start to do something with tool...
@@ -12,12 +25,9 @@ Short Term Todo Items:
 3. Eliminate maps and just use variable names
 4. Early enabling variables from GraphExit Node
 5. Build example
-6. Add debugging support:
-  a. Strict debugging support, memoize queries, don't generate query if we have it
-  b. Support outputting problematic chat history as python program for debugging
-7. Cost computation??
-8. Automatic failover to large model if we get a small model error?
-9. Speculative execution?
+6. Cost computation??
+7. Automatic failover to large model if we get a small model error?
+8. Speculative execution?
 
 Long Term Todo Items:
 1. Support for RAG
