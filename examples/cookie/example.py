@@ -15,7 +15,7 @@ agentA = agentgraph.createLLMAgent(ovarA, msg = sys > pA)
 scheduler.addTask(agentA.start, g)
 ovarR = ovarA
 
-for i in range(2):
+for i in range(3):
     pB = prompts.createPrompt("PromptB", {ovarR})
     gnew = agentgraph.VarMap()
     ovarB = agentgraph.Var("Recipe")

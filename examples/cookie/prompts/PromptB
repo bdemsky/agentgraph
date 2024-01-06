@@ -1,9 +1,12 @@
-I want to enter a cookie competition.  I'm trying to make a new type
-of cookie.  Here is my current recipe.
+I want to develop a healthy version of a chocolate chip cookie.  Here
+is my current recipe.
 
 {{Recipe}}
 
-Please make revisions to the recipe to improve the taste of the
-cookies and output your entire updated recipe.  Be sure to make sure
-that your updated recipe stands alone and does not require the
-original recipe.
+Please make revisions to the recipe to improve the nutritional value
+of the cookies while still making sure they are tasty.  Output your
+entire updated recipe.  Consider including ingredients that are
+actually healthy like vegetables and not just health fad ingredients.
+Make sure they are low in saturated fats, so you probably want to
+avoid coconut oils.  Be sure to make sure that your updated recipe
+stands alone and does not require the original recipe.

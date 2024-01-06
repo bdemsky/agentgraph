@@ -18,7 +18,6 @@ current task.
 
 
 Short Term Todo Items:
-
 0. Start to do something with tool...
 1. Play with APIs to limit red tape.
 2. Code to snapshot variables automatically

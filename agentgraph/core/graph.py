@@ -104,7 +104,7 @@ class GraphNested(GraphNode):
 class GraphCall(GraphNested):
     """Calls another graph."""
 
-    def __init__(self, inMap: dict, outMap: dict):
+    def __init__(self):
         """inMap maps caller parameters Vars to the callee Vars that provide the value.
 
         outMap maps caller return Vars to the callee Vars that should be assigned."""
@@ -154,17 +154,19 @@ class GraphCall(GraphNested):
 class GraphLLMAgent(GraphNode):
     """Run some action.  This is a LLM Agent."""
     
-    def __init__(self, outVar: Var,  conversation: Var, model: LLMModel, msg: MsgSeq, formatFunc, inVars: dict):
+    def __init__(self, outVar: Var,  conversation: Var, model: LLMModel, msg: MsgSeq, formatFunc, kw: dict, pos:list):
         super().__init__()
         self.outVar = outVar
         self.conversation = conversation
         self.model = model
         self.msg = msg
         self.formatFunc = formatFunc
-        self.inVars = inVars if inVars != None else {}
-
+        self.kw = kw if kw != None else {}
+        self.pos = pos if pos != None else []
+        
     def getReadVars(self) -> list:
-        l = list(self.inVars.values())
+        l = list(self.kw.values())
+        l.extend(self.pos)
         if self.conversation is not None:
             l.append(self.conversation)
         if self.msg != None:
@@ -183,14 +185,18 @@ class GraphLLMAgent(GraphNode):
         if self.msg != None:
             output = self.msg.exec(varMap)
         else:
+            posList = list()
+            for var in self.pos:
+                posList.append(varMap[var])
+
             inMap = dict()
             # First, compose dictionary for inVars (str -> Var) and varMap
             # (Var -> Value) to generate inMap (str -> Value)
-            for name, var in self.inVars:
+            for name, var in self.kw:
                 inMap[name] = varMap[var]
 
             # Next, actually call the formatFunc to generate the prompt
-            output = await self.formatFunc(inMap)
+            output = await self.formatFunc(*posList, **inMap)
         print(output)
         # Call the model
         model = self.model
@@ -213,7 +219,7 @@ class GraphLLMAgent(GraphNode):
 class GraphPythonAgent(GraphNested):
     """Run some action.  This is a Python Agent."""
     
-    def __init__(self, pythonFunc, inVars: dict, outVars: dict):
+    def __init__(self, pythonFunc, pos: list, kw: dict, outVars: dict):
         """inVars is a map from names to Var objects that provide
         values for those variables.  The python function will be
         passed a dict that maps these names to values.
@@ -226,7 +232,8 @@ class GraphPythonAgent(GraphNested):
         
         super().__init__()
         self.pythonFunc = pythonFunc
-        self.inVars = inVars if inVars != None else {}
+        self.pos = pos if pos != None else []
+        self.kw = kw if kw != None else {}
         self.outVars = outVars if outVars != None else {}
 
     def getReadVars(self) -> list:
@@ -241,15 +248,20 @@ class GraphPythonAgent(GraphNested):
         and the varMap which maps Vars to the values to be used when
         executing the python agent."""
 
+        # Build positional variables
+        posList = list()
+        for var in self.pos:
+            posList.append(varMap[var])
+        
         # First, compose dictionary for inVars (str -> Var) and varMap
         # (Var -> Value) to generate inMap (str -> Value)
         
         inMap = dict()
-        for name, var in self.inVars:
+        for name, var in self.kw:
             inMap[name] = varMap[var]
-        
+
         # Next, actually call the formatFunc to generate the prompt
-        omap = await self.pythonFunc(scheduler, inMap)
+        omap = await self.pythonFunc(scheduler, *posList, **inMap)
 
         # Construct outMap (Var -> Object) from outVars (name -> Var)
         # and omap (name -> Value)
@@ -295,17 +307,26 @@ class GraphPair:
     def __or__(a: 'GraphPair', b: 'GraphPair') -> 'GraphPair':
         return createSequence([a, b])
     
-def checkInVars(inVars: dict):
-    if inVars == None:
-        return
+def checkInVars(pos: list, kw: dict):
     mutSet = {}
-    for v, var in inVars:
-        if var.isMutable():
-            mutSet.add(var)
-    for v, var in inVars:
-        if var.isMutable() and var.isRead() and var.getVar() in mutSet:
-            raise RuntimeException(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
-    
+    if kw is not None:
+        for v, var in kw:
+            if var.isMutable():
+                mutSet.add(var)
+    if pos is not None:
+        for var in pos:
+            if var.isMutable():
+                mutSet.add(var)
+    if kw is not None:
+        for v, var in kw:
+            if var.isMutable() and var.isRead() and var.getVar() in mutSet:
+                raise RuntimeException(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
+    if pos is not None:
+        for var in pos:
+            if var.isMutable() and var.isRead() and var.getVar() in mutSet:
+                raise RuntimeException(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
+
+        
 class VarMap:
     def __init__(self):
         self._varMap = dict()
@@ -358,7 +379,7 @@ class VarMap:
         self._varMap[var] = val
         return var
     
-def createLLMAgent(outVar: Var, conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, inVars: dict = None) -> GraphPair:
+def createLLMAgent(outVar: Var, conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, pos: list = None, kw: dict = None) -> GraphPair:
     """Creates a LLM agent task.
 
     Arguments:
@@ -375,11 +396,11 @@ def createLLMAgent(outVar: Var, conversation: Var = None, model: LLMModel = None
     assert msg is not None or formatFunc is not None, "Either msg or formatFunc must be specified."
     assert msg is None or formatFunc is None, "Cannot specify both msg and formatFunc."
         
-    checkInVars(inVars)
-    llmAgent = GraphLLMAgent(outVar, conversation, model, msg, formatFunc, inVars)
+    checkInVars(pos, kw)
+    llmAgent = GraphLLMAgent(outVar, conversation, model, msg, formatFunc, pos, kw)
     return GraphPair(llmAgent, llmAgent)
 
-def createPythonAgent(pythonFunc, inVars: dict = None, outVars: dict = None) -> GraphPair:
+def createPythonAgent(pythonFunc, pos: list = None, kw: dict = None, outVars: dict = None) -> GraphPair:
     """Creates a Python agent task.
     
     Arguments:
@@ -388,8 +409,8 @@ def createPythonAgent(pythonFunc, inVars: dict = None, outVars: dict = None) -> 
     outVars --- a dict mapping from names to Vars for the output of the pythonFunc Python function.  (default None)
     """
     
-    checkInVars(inVars)
-    pythonAgent = GraphPythonAgent(pythonFunc, inVars, outVars)
+    checkInVars(pos, kw)
+    pythonAgent = GraphPythonAgent(pythonFunc, pos, kw, outVars)
     return GraphPair(pythonAgent, pythonAgent)
     
 def createSequence(list) -> GraphPair:
