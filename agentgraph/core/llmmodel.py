@@ -14,6 +14,10 @@ class LLMModel:
         self.smallModel = smallModel
         self.switchThreshold = threshold
         self.largeModel = largeModel
+        self.lprompt_tokens = 0
+        self.lcompletion_tokens = 0
+        self.sprompt_tokens = 0
+        self.scompletion_tokens = 0
         
     async def lookupCache(self, message_to_send) -> str:
         if agentgraph.config is None:
@@ -90,8 +94,18 @@ class LLMModel:
 
         chat_message = chat_completion.choices[0].message.content
         self.writeCache(message_to_send, chat_message)
+        if model_to_use == self.smallModel:
+            self.scompletion_tokens += chat_completion.usage.completion_tokens
+            self.sprompt_tokens += chat_completion.usage.prompt_tokens
+        else:
+            self.lcompletion_tokens += chat_completion.usage.completion_tokens
+            self.lprompt_tokens += chat_completion.usage.prompt_tokens
         return chat_message
 
+    def print_statistics(self):
+        print(f"Large Prompt tokens: {self.lprompt_tokens} Completion tokens: {self.lcompletion_tokens}")
+        print(f"Small Prompt tokens: {self.sprompt_tokens} Completion tokens: {self.scompletion_tokens}")
+    
 def hashMessage(message_to_send: str) -> str:
     """ Returns hash of message_to_send"""
     

@@ -591,3 +591,4 @@ class Scheduler:
             raise RuntimeException("Calling shutdown on non-parent Scheduler.")
         else:
             self.engine.shutdown()
+            self.getDefaultModel().print_statistics()
