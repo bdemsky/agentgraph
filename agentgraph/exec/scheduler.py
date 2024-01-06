@@ -85,6 +85,9 @@ class ScheduleNode:
 
     def setOutVarMap(self, outVarMap: dict):
         self.outVarMap = outVarMap
+
+    def getOutVarMap(self):
+        return self.outVarMap
     
     def getOutVarVal(self, var: Var):
         """Returns the output value for the variable var."""
@@ -332,7 +335,6 @@ class Scheduler:
             self.endTasks.setNext(taskNode)
 
         self.endTasks = taskNode
-
         self.checkForMutables(node, varMap)
         
         if (self.startTasks == taskNode):
@@ -375,13 +377,13 @@ class Scheduler:
         for var in task.getVarMap():
             value = task.getVarMap()[var]
             self.varMap[var] = value
-            
+
         if fromThread:
-            self.scan(task.getNode())
-        else:
             self.engine.runScan(task.getNode(), self)
-            
+        else:
+            self.scan(task.getNode())
         
+            
     def scan(self, node: GraphNode):
         """Scans nodes in graph for scheduling purposes."""
         while True:
@@ -393,7 +395,8 @@ class Scheduler:
             for var in inVars:
                 lookup = self.varMap[var]
                 if isinstance(lookup, ScheduleNode):
-                    # Variable mapped to schedule node, which means we haven't executed the relevant computation
+                    # Variable mapped to schedule node, which means we
+                    # haven't executed the relevant computation
                     depCount += 1
                     lookup.addWaiter(var, scheduleNode)
                 else:
@@ -493,6 +496,15 @@ class Scheduler:
                 else:
                     #No heap dependence, so decrement count
                     self.decDepCount(n)
+
+        outVarValMap = node.getOutVarMap()
+        if outVarValMap is not None:
+            for var in outVarValMap:
+                # Pull ourselves out of any varMap entries and replace
+                # with value so that future tasks are not waiting on us.
+                if self.varMap[var] == node:
+                    self.varMap[var] = outVarValMap[var]
+
         #Release our heap dependences
         inVarValMap = node.getInVarMap()
         for var in inVarValMap:

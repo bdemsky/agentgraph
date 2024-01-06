@@ -205,7 +205,6 @@ class GraphLLMAgent(GraphNode):
             model = getCurrentScheduler().getDefaultModel()
         
         outStr = await model.sendData(output)
-
         # Update conversation
         if self.conversation is not None:
             varMap[self.conversation].push(outStr)
@@ -230,14 +229,14 @@ class GraphPythonAgent(GraphNested):
         returned by the Python function.
         """
         
-        super().__init__()
+        super().__init__(None)
         self.pythonFunc = pythonFunc
         self.pos = pos if pos != None else []
         self.kw = kw if kw != None else {}
         self.outVars = outVars if outVars != None else {}
 
     def getReadVars(self) -> list:
-        return self.inVars.values()
+        return list(self.kw.values()) + self.pos
         
     def getWriteVars(self) -> list:
         return self.outVars.values()
@@ -262,7 +261,7 @@ class GraphPythonAgent(GraphNested):
 
         # Next, actually call the formatFunc to generate the prompt
         omap = await self.pythonFunc(scheduler, *posList, **inMap)
-
+        
         # Construct outMap (Var -> Object) from outVars (name -> Var)
         # and omap (name -> Value)
         
@@ -273,7 +272,7 @@ class GraphPythonAgent(GraphNested):
 
         # Add ourselves to the scheduler with an empty variable map
         # now that we know there will be no other new tasks.
-        scheduler.addTask(self, dict())
+        scheduler.addTask(self, None, dict())
         
         return outMap
     
@@ -371,6 +370,11 @@ class VarMap:
     
     def mapToBool(self, name: str, val: bool) -> BoolVar:
         var = self._getBoolVariable(name)
+        self._varMap[var] = val
+        return var
+
+    def mapToInt(self, name: str, val: int) -> Var:
+        var = self._getVariable(name)
         self._varMap[var] = val
         return var
     

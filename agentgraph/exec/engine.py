@@ -63,7 +63,7 @@ class Engine:
 
 async def wrap_scan(scheduler: 'agentgraph.exec.scheduler.Scheduler', graph: GraphNode):
     scheduler.scan(graph)
-
+    
 async def create_queue() -> janus.Queue:
     queue = janus.Queue()
     return queue
