@@ -392,33 +392,35 @@ class Scheduler:
             outVars = node.getWriteVars()
             scheduleNode = ScheduleNode(node)
             # Compute our set of dependencies
-            for var in inVars:
-                lookup = self.varMap[var]
-                if isinstance(lookup, ScheduleNode):
-                    # Variable mapped to schedule node, which means we
-                    # haven't executed the relevant computation
-                    depCount += 1
-                    lookup.addWaiter(var, scheduleNode)
-                else:
-                    # We have the value
-                    scheduleNode.setInVarVal(var, lookup)
-                    if var.isMutable():
-                        # If the variable is mutable, add ourselves.
-                        try:
-                            depCount += self.handleReference(scheduleNode, var, lookup)
-                        except Exception as e:
-                            print('Error', e)
-                            print(traceback.format_exc())
-                            return
+            if node != self.scope:
+                for var in inVars:
+                    lookup = self.varMap[var]
+                    if isinstance(lookup, ScheduleNode):
+                        # Variable mapped to schedule node, which means we
+                        # haven't executed the relevant computation
+                        depCount += 1
+                        lookup.addWaiter(var, scheduleNode)
+                    else:
+                        # We have the value
+                        scheduleNode.setInVarVal(var, lookup)
+                        if var.isMutable():
+                            # If the variable is mutable, add ourselves.
+                            try:
+                                depCount += self.handleReference(scheduleNode, var, lookup)
+                            except Exception as e:
+                                print('Error', e)
+                                print(traceback.format_exc())
+                                return
                         
             # Save our dependence count.
             scheduleNode.setDepCount(depCount)
+
+            if node == self.scope:
+                return
             
             # Update variable map with any of our dependencies
             for var in outVars:
                 self.varMap[var] = scheduleNode
-            if node == self.scope:
-                return
 
             #Compute next node to scan
             if isinstance(node, GraphNodeBranch):
@@ -451,7 +453,7 @@ class Scheduler:
                     return
                 else:
                     # Start scheduling next task
-                    nexttask = selt.startTasks
+                    nexttask = self.startTasks
                     node = nexttask.getNode()
                     for var in nexttask.getVarMap():
                         value = nexttask.getVarMap()[var]
