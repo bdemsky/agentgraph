@@ -37,7 +37,6 @@ class Engine:
                 agentgraph.exec.scheduler.setCurrentScheduler(scheduler)
                 lastscheduler = scheduler
             try:
-                
                 await scheduleNode.run(scheduler)
                 scheduler.completed(scheduleNode)
             except Exception as e:

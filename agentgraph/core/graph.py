@@ -261,7 +261,7 @@ class GraphPythonAgent(GraphNested):
 
         # Next, actually call the formatFunc to generate the prompt
         omap = await self.pythonFunc(scheduler, *posList, **inMap)
-        
+
         # Construct outMap (Var -> Object) from outVars (name -> Var)
         # and omap (name -> Value)
         
@@ -270,10 +270,6 @@ class GraphPythonAgent(GraphNested):
             for name, var in self.outVars:
                 outMap[var] = omap[name]
 
-        # Add ourselves to the scheduler with an empty variable map
-        # now that we know there will be no other new tasks.
-        scheduler.addTask(self, None, dict())
-        
         return outMap
     
 class GraphNodeNop(GraphNode):

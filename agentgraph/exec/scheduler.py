@@ -480,6 +480,11 @@ class Scheduler:
     def completed(self, node: ScheduleNode):
         """We call this when a task has completed."""
 
+        if node.getGraphNode() == self.scope:
+            if self.parent is not None:
+                self.parent.completed(node)
+            return
+        
         # Get list of tasks waiting on variables
         waiters = node.getWaiters()
         for var in waiters:
@@ -553,7 +558,7 @@ class Scheduler:
                     writeMap[var] = self.varMap[var]
             scheduleNode.setOutVarMap(writeMap)
                     
-            if self.parent != None:
+            if self.parent is not None:
                 self.parent.completed(scheduleNode)
             else:
                 print("This should not happen!")
