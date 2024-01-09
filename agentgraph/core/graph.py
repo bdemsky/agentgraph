@@ -218,13 +218,13 @@ class GraphLLMAgent(GraphNode):
 class GraphPythonAgent(GraphNested):
     """Run some action.  This is a Python Agent."""
     
-    def __init__(self, pythonFunc, pos: list, kw: dict, outVars: dict):
+    def __init__(self, pythonFunc, pos: list, kw: dict, out: list):
         """inVars is a map from names to Var objects that provide
         values for those variables.  The python function will be
         passed a dict that maps these names to values.
 
         The python function is expected to return a dict that maps
-        names to values.  The outVars mapping maps those names to the
+        names to values.  The out mapping maps those names to the
         Variables whose values should be updated with the values
         returned by the Python function.
         """
@@ -233,13 +233,13 @@ class GraphPythonAgent(GraphNested):
         self.pythonFunc = pythonFunc
         self.pos = pos if pos != None else []
         self.kw = kw if kw != None else {}
-        self.outVars = outVars if outVars != None else {}
+        self.out = out if out != None else []
 
     def getReadVars(self) -> list:
         return list(self.kw.values()) + self.pos
         
     def getWriteVars(self) -> list:
-        return self.outVars.values()
+        return self.out
 
     def execute(self, scheduler: 'agentgraph.exec.scheduler.Scheduler', varMap: dict) -> dict:
         """Execute Python Agent.  Takes as input the scheduler object
@@ -260,16 +260,17 @@ class GraphPythonAgent(GraphNested):
             inMap[name] = varMap[var]
 
         # Next, actually call the formatFunc to generate the prompt
-        omap = self.pythonFunc(scheduler, *posList, **inMap)
+        out = self.pythonFunc(scheduler, *posList, **inMap)
 
         # Construct outMap (Var -> Object) from outVars (name -> Var)
         # and omap (name -> Value)
         
-        outMap = dict()
-        if self.outVars != None:
-            for name, var in self.outVars:
-                outMap[var] = omap[name]
-
+        outMap = list()
+        index = 0
+        for var in self.out:
+                outMap[var] = omap[index]
+                index += 1
+                
         return outMap
     
 class GraphNodeNop(GraphNode):
@@ -400,17 +401,17 @@ def createLLMAgent(outVar: Var, conversation: Var = None, model: LLMModel = None
     llmAgent = GraphLLMAgent(outVar, conversation, model, msg, formatFunc, pos, kw)
     return GraphPair(llmAgent, llmAgent)
 
-def createPythonAgent(pythonFunc, pos: list = None, kw: dict = None, outVars: dict = None) -> GraphPair:
+def createPythonAgent(pythonFunc, pos: list = None, kw: dict = None, out: list = None) -> GraphPair:
     """Creates a Python agent task.
     
     Arguments:
     pythonFunc --- a Python function to be executed.
     inVars --- a dict mapping from names to Vars for the input to the pythonFunc Python function. (default None)
-    outVars --- a dict mapping from names to Vars for the output of the pythonFunc Python function.  (default None)
+    out --- a dict mapping from names to Vars for the output of the pythonFunc Python function.  (default None)
     """
     
     checkInVars(pos, kw)
-    pythonAgent = GraphPythonAgent(pythonFunc, pos, kw, outVars)
+    pythonAgent = GraphPythonAgent(pythonFunc, pos, kw, out)
     return GraphPair(pythonAgent, pythonAgent)
     
 def createSequence(list) -> GraphPair:

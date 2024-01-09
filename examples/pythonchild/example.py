@@ -3,7 +3,7 @@ import os
 import time
 
 
-def testFunc1(scheduler) -> dict:
+def testFunc1(scheduler) -> list:
     print(scheduler)
     prompts = agentgraph.Prompts("./examples/pythonchild/prompts/")
     sys = prompts.createPrompt("System")
@@ -13,7 +13,6 @@ def testFunc1(scheduler) -> dict:
     agentA = agentgraph.createLLMAgent(ovarA, msg = sys > pA)
     scheduler.addTask(agentA.start, g)
     ovarR = ovarA
-    print("START")
     
     for i in range(3):
         pB = prompts.createPrompt("PromptB", {ovarR})
@@ -26,12 +25,12 @@ def testFunc1(scheduler) -> dict:
     print("Tasks Enqueued")
     print(ovarA.getValue())
 
-    return dict()
+    return []
 
-def testFunc2(scheduler, bar: int) -> dict:
+def testFunc2(scheduler, bar: int) -> list:
     print(scheduler)
     print("TestB", bar)
-    return dict()
+    return []
 
 model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
 scheduler = agentgraph.getRootScheduler(model)
