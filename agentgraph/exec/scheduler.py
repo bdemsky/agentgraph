@@ -106,12 +106,13 @@ class ScheduleNode:
         
         return self.inVarMap
         
-    async def run(self, scheduler: 'Scheduler'):
+    async def run(self):
         """Run the node"""
-        if isinstance(self.node, GraphPythonAgent):
-            self.outVarMap = await self.node.execute(scheduler, self.getInVarMap())
-        else:
-            self.outVarMap = await self.node.execute(self.getInVarMap())
+        self.outVarMap = await self.node.execute(self.getInVarMap())
+
+    def threadRun(self, scheduler: 'Scheduler'):
+        """Run the node"""
+        self.outVarMap = self.node.execute(scheduler, self.getInVarMap())
 
 dummyTask = ScheduleNode(None)
             
@@ -337,7 +338,7 @@ class Scheduler:
         self.checkForMutables(node, varMap)
         
         if (self.startTasks == taskNode):
-            self.runTask(taskNode, self.scope == None)
+            self.runTask(taskNode)
 
     def checkForMutables(self, node: GraphNode, varMap: dict):
         """ Handle and references to mutable objects."""
@@ -371,16 +372,12 @@ class Scheduler:
             node = node.getNext(0)
             
         
-    def runTask(self, task: TaskNode, fromThread: bool):
+    def runTask(self, task: TaskNode):
         """Starts up the first task."""
         for var in task.getVarMap():
             value = task.getVarMap()[var]
             self.varMap[var] = value
-
-        if fromThread:
-            self.engine.runScan(task.getNode(), self)
-        else:
-            self.scan(task.getNode())
+        self.engine.runScan(task.getNode(), self)
 
     def checkFinishScope(self):
         if self.windowSize == 0:
@@ -392,7 +389,6 @@ class Scheduler:
             if node == self.scope:
                 self.checkFinishScope()
                 return
-            
             depCount = 0
             inVars = node.getReadVars()
             outVars = node.getWriteVars()
@@ -417,7 +413,6 @@ class Scheduler:
                             print('Error', e)
                             print(traceback.format_exc())
                             return
-                        
             # Save our dependence count.
             scheduleNode.setDepCount(depCount)
 
@@ -586,7 +581,7 @@ class Scheduler:
                 child = Scheduler(self.model, graphnode, self, self.engine)
                 #Add a count for the PythonAgent task
                 child.windowSize = 1
-                self.engine.queueItem(scheduleNode, child)
+                self.engine.threadQueueItem(scheduleNode, child)
                 return
             
             inVarMap = scheduleNode.getInVarMap()            

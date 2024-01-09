@@ -3,11 +3,11 @@ import os
 import time
 
 
-async def testFunc1(scheduler, foo: int) -> dict:
+def testFunc1(scheduler, foo: int) -> dict:
     print("TestA", foo)
     return dict()
 
-async def testFunc2(scheduler, bar: int) -> dict:
+def testFunc2(scheduler, bar: int) -> dict:
     print("TestB", bar)
     return dict()
 

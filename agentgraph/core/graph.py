@@ -241,7 +241,7 @@ class GraphPythonAgent(GraphNested):
     def getWriteVars(self) -> list:
         return self.outVars.values()
 
-    async def execute(self, scheduler: 'agentgraph.exec.scheduler.Scheduler', varMap: dict) -> dict:
+    def execute(self, scheduler: 'agentgraph.exec.scheduler.Scheduler', varMap: dict) -> dict:
         """Execute Python Agent.  Takes as input the scheduler object
         for the python agent task (in case it generates child tasks)
         and the varMap which maps Vars to the values to be used when
@@ -260,7 +260,7 @@ class GraphPythonAgent(GraphNested):
             inMap[name] = varMap[var]
 
         # Next, actually call the formatFunc to generate the prompt
-        omap = await self.pythonFunc(scheduler, *posList, **inMap)
+        omap = self.pythonFunc(scheduler, *posList, **inMap)
 
         # Construct outMap (Var -> Object) from outVars (name -> Var)
         # and omap (name -> Value)
