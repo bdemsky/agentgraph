@@ -281,7 +281,6 @@ class Scheduler:
         self.varMap = dict()
         self.parent = parent
         self.engine = engine
-        self.count = 0
         self.scoreboard = ScoreBoard()
         self.windowSize = 0
         self.windowStall = None
@@ -382,14 +381,16 @@ class Scheduler:
             self.engine.runScan(task.getNode(), self)
         else:
             self.scan(task.getNode())
-        
+
+    def checkFinishScope(self):
+        if self.windowSize == 0:
+            self.finishScope(self.scope)
             
     def scan(self, node: GraphNode):
         """Scans nodes in graph for scheduling purposes."""
         while True:
             if node == self.scope:
-                if self.count == 0:
-                    self.finishScope(self.scope)
+                self.checkFinishScope()
                 return
             
             depCount = 0
@@ -481,12 +482,11 @@ class Scheduler:
         
     def completed(self, node: ScheduleNode):
         """We call this when a task has completed."""
-
+        self.windowSize -= 1
+        
         if node == self.scope:
             #We just finished a python agent node
-            self.count -= 1
-            if self.count == 0:
-                self.finishScope(self.scope)
+            self.checkFinishScope()
             return
         
         # Get list of tasks waiting on variables
@@ -522,16 +522,15 @@ class Scheduler:
             if var.isMutable():
                 val = inVarValMap[var]
                 self.scoreboard.removeWaiter(val, node, self)
-        self.windowSize -= 1
+                
         if self.windowSize < agentgraph.config.MAX_WINDOW_SIZE and self.windowStall != None:
             if self.windowStall != None:
                 tmp = self.windowStall
                 self.windowStall = None
                 self.scan(tmp.getGraphNode())
-        # Decrement count of running tasks
-        self.count -= 1
-        if self.count == 0:
-            self.finishScope(self.scope)
+
+        #Check if we need to finish scope off
+        self.checkFinishScope()
         
     def decDepCount(self, node: ScheduleNode):
         """Decrement dependence count.  Starts task if dependence
@@ -549,9 +548,6 @@ class Scheduler:
 
         """
         
-        #Dependences are resolve for final node
-        self.windowSize -= 1
-
         #See if anyone cares about the end of the scope
         if self.parent is None:
             return
@@ -584,14 +580,12 @@ class Scheduler:
         graphnode = scheduleNode.getGraphNode()
         
         if isinstance(graphnode, GraphNested):
-            self.count += 1
-
             # Need start new Scheduler
             if isinstance(graphnode, GraphPythonAgent):
                 # Start scheduler for PythonAgent child
                 child = Scheduler(self.model, graphnode, self, self.engine)
                 #Add a count for the PythonAgent task
-                child.count = 1
+                child.windowSize = 1
                 self.engine.queueItem(scheduleNode, child)
                 return
             
@@ -611,8 +605,6 @@ class Scheduler:
             child = Scheduler(self.model, graphnode, self, self.engine)
             child.addTask(graphnode.getStart(), None, varMap = inVarMap)
         else:
-            self.count += 1
-
             #Schedule the job
             self.engine.queueItem(scheduleNode, self)
 
