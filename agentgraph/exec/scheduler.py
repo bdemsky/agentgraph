@@ -387,37 +387,39 @@ class Scheduler:
     def scan(self, node: GraphNode):
         """Scans nodes in graph for scheduling purposes."""
         while True:
+            if node == self.scope:
+                if self.count == 0:
+                    self.finishScope(self.scope)
+                return
+            
             depCount = 0
             inVars = node.getReadVars()
             outVars = node.getWriteVars()
             scheduleNode = ScheduleNode(node)
+
             # Compute our set of dependencies
-            if node != self.scope:
-                for var in inVars:
-                    lookup = self.varMap[var]
-                    if isinstance(lookup, ScheduleNode):
-                        # Variable mapped to schedule node, which means we
-                        # haven't executed the relevant computation
-                        depCount += 1
-                        lookup.addWaiter(var, scheduleNode)
-                    else:
-                        # We have the value
-                        scheduleNode.setInVarVal(var, lookup)
-                        if var.isMutable():
-                            # If the variable is mutable, add ourselves.
-                            try:
-                                depCount += self.handleReference(scheduleNode, var, lookup)
-                            except Exception as e:
-                                print('Error', e)
-                                print(traceback.format_exc())
-                                return
+            for var in inVars:
+                lookup = self.varMap[var]
+                if isinstance(lookup, ScheduleNode):
+                    # Variable mapped to schedule node, which means we
+                    # haven't executed the relevant computation
+                    depCount += 1
+                    lookup.addWaiter(var, scheduleNode)
+                else:
+                    # We have the value
+                    scheduleNode.setInVarVal(var, lookup)
+                    if var.isMutable():
+                        # If the variable is mutable, add ourselves.
+                        try:
+                            depCount += self.handleReference(scheduleNode, var, lookup)
+                        except Exception as e:
+                            print('Error', e)
+                            print(traceback.format_exc())
+                            return
                         
             # Save our dependence count.
             scheduleNode.setDepCount(depCount)
 
-            if node == self.scope:
-                return
-            
             # Update variable map with any of our dependencies
             for var in outVars:
                 self.varMap[var] = scheduleNode
@@ -439,7 +441,7 @@ class Scheduler:
             else:
                 self.windowSize += 1
                 if (depCount == 0):
-                    self.startBaseTask(scheduleNode, node)
+                    self.startBaseTask(scheduleNode)
                 
                 node = node.getNext(0)
                 
@@ -480,9 +482,11 @@ class Scheduler:
     def completed(self, node: ScheduleNode):
         """We call this when a task has completed."""
 
-        if node.getGraphNode() == self.scope:
-            if self.parent is not None:
-                self.parent.completed(node)
+        if node == self.scope:
+            #We just finished a python agent node
+            self.count -= 1
+            if self.count == 0:
+                self.finishScope(self.scope)
             return
         
         # Get list of tasks waiting on variables
@@ -524,9 +528,11 @@ class Scheduler:
                 tmp = self.windowStall
                 self.windowStall = None
                 self.scan(tmp.getGraphNode())
+        # Decrement count of running tasks
+        self.count -= 1
+        if self.count == 0:
+            self.finishScope(self.scope)
         
-
-                
     def decDepCount(self, node: ScheduleNode):
         """Decrement dependence count.  Starts task if dependence
         count gets to zero."""
@@ -534,39 +540,58 @@ class Scheduler:
         if node.decDepCount():
             #Ready to run this one now
             self.startTask(node)
-                    
-    def startBaseTask(self, scheduleNode: ScheduleNode, graphnode: GraphNode):
+
+    def finishScope(self, graphnode: GraphNode):
+        """Finish off a GraphNested node.  For now we require that all
+        child tasks have completed before the nested completes.  More
+        sophisticated implementations are possible that allow nodes to
+        partially complete.
+
+        """
+        
+        #Dependences are resolve for final node
+        self.windowSize -= 1
+
+        #See if anyone cares about the end of the scope
+        if self.parent is None:
+            return
+        
+        scheduleNode = ScheduleNode(graphnode)
+        #Need to build value map to record the values the nested graph outputs
+        writeMap = dict()
+        if isinstance(graphnode, GraphCall) and graphnode.outMap != None:
+            writeSet = graphnode.call.getWriteVars()
+            for var in writeSet:
+                if var in graphnode.call.outMap:
+                    writeMap[graphnode.call.outMap[var]] = self.varMap[var]
+                else:
+                    writeMap[var] = self.varMap[var]
+        else:
+            writeSet = graphnode.getWriteVars()
+            for var in writeSet:
+                writeMap[var] = self.varMap[var]
+        scheduleNode.setOutVarMap(writeMap)
+        
+        if self.parent is not None:
+            self.parent.completed(scheduleNode)
+        else:
+            print("This should not happen!")
+
+            
+    def startBaseTask(self, scheduleNode: ScheduleNode):
         """Starts task."""
         
         graphnode = scheduleNode.getGraphNode()
         
-        if graphnode == self.scope:
-            #Dependences are resolve for final node
-            self.windowSize -= 1
-            #Need to build value map to record the values the nested graph outputs
-            writeMap = dict()
-            if isinstance(graphnode, GraphCall) and graphnode.outMap != None:
-                writeSet = graphnode.call.getWriteVars()
-                for var in writeSet:
-                    if var in graphnode.call.outMap:
-                        writeMap[graphnode.call.outMap[var]] = self.varMap[var]
-                    else:
-                        writeMap[var] = self.varMap[var]
-            else:
-                writeSet = graphnode.getWriteVars()
-                for var in writeSet:
-                    writeMap[var] = self.varMap[var]
-            scheduleNode.setOutVarMap(writeMap)
-                    
-            if self.parent is not None:
-                self.parent.completed(scheduleNode)
-            else:
-                print("This should not happen!")
-        elif isinstance(graphnode, GraphNested):
+        if isinstance(graphnode, GraphNested):
+            self.count += 1
+
             # Need start new Scheduler
             if isinstance(graphnode, GraphPythonAgent):
                 # Start scheduler for PythonAgent child
                 child = Scheduler(self.model, graphnode, self, self.engine)
+                #Add a count for the PythonAgent task
+                child.count = 1
                 self.engine.queueItem(scheduleNode, child)
                 return
             
@@ -586,6 +611,8 @@ class Scheduler:
             child = Scheduler(self.model, graphnode, self, self.engine)
             child.addTask(graphnode.getStart(), None, varMap = inVarMap)
         else:
+            self.count += 1
+
             #Schedule the job
             self.engine.queueItem(scheduleNode, self)
 
@@ -600,7 +627,7 @@ class Scheduler:
             graphnode = graphnode.getNext(edge)
             self.scan(graphnode)
         else:
-            self.startBaseTask(scheduleNode, graphnode)
+            self.startBaseTask(scheduleNode)
 
     def shutdown(self):
         """Shutdown the engine.  Care should be taken to ensure engine

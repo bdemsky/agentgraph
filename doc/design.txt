@@ -4,9 +4,21 @@ New syntax rules...
 to mutable objects).  Only one variable allowed to reference mutable
 object.
 
+---
+
+Handling nested nodes:
+
+The precise approach is to update parent node var values/effects as we
+finish them.  Basically allow a nested node to release values/data
+structures to parent scheduler partially.
+
+Current implementation makes a nested node wait until all child tasks
+have completed.  Then the scope node completes.
+
 
 ---
-Working with mutable data structures...
+
+Working with mutable data structures:
 
 Each mutable object has owner task (scheduleNode)...  If we start a
 task that will access a mutable object and we currently own a mutable
