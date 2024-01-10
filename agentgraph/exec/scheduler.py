@@ -265,7 +265,7 @@ class TaskNode:
 class Scheduler:
     """Scheduler class.  This does all of the scheduling for a given Nested Graph."""
     
-    def __init__(self, model: LLMModel, scope: GraphNested, parent: 'Scheduler', engine: Engine):
+    def __init__(self, model: LLMModel, scope: ScheduleNode, parent: 'Scheduler', engine: Engine):
 
         """Object initializer for a new Scheduler:
         model - the model we want to use by default
@@ -359,14 +359,14 @@ class Scheduler:
                     continue
                 
                 if isinstance(value, agentgraph.core.mutable.Mutable):
-                    mutTask = value.getTask()
+                    mutTask = value.getOwner()
                     # See if parent owns this Mutable.  If so, we know
                     # there will be no race when we revoke ownership
                     # by setting the owner to dummyTask.  If the
                     # parent doesn't own the Mutable, it won't be
                     # racing with children, and so we have no problem.
-                    if mutTask == currTask:
-                        value.setTask(dummyTask)
+                    if mutTask == currSchedulerTask:
+                        value.setOwner(dummyTask)
                     
             writeSet.update(node.getWriteVars())
             node = node.getNext(0)
@@ -381,17 +381,18 @@ class Scheduler:
 
     def checkFinishScope(self):
         if self.windowSize == 0:
-            self.finishScope(self.scope)
+            self.finishScope()
             
     def scan(self, node: GraphNode):
         """Scans nodes in graph for scheduling purposes."""
         while True:
-            if node == self.scope:
-                self.checkFinishScope()
+            if self.scope is not None and node == self.scope.getGraphNode():
+                print("BAD")
                 return
             depCount = 0
             inVars = node.getReadVars()
             outVars = node.getWriteVars()
+
             scheduleNode = ScheduleNode(node)
 
             # Compute our set of dependencies
@@ -418,6 +419,7 @@ class Scheduler:
 
             # Update variable map with any of our dependencies
             for var in outVars:
+                print("XX", self, var.name)
                 self.varMap[var] = scheduleNode
 
             #Compute next node to scan
@@ -535,7 +537,7 @@ class Scheduler:
             #Ready to run this one now
             self.startTask(node)
 
-    def finishScope(self, graphnode: GraphNode):
+    def finishScope(self):
         """Finish off a GraphNested node.  For now we require that all
         child tasks have completed before the nested completes.  More
         sophisticated implementations are possible that allow nodes to
@@ -547,21 +549,24 @@ class Scheduler:
         if self.parent is None:
             return
         
-        scheduleNode = ScheduleNode(graphnode)
+        scheduleNode = self.scope
+        graphnode = scheduleNode.getGraphNode()
+
         #Need to build value map to record the values the nested graph outputs
-        writeMap = dict()
-        if isinstance(graphnode, GraphCall) and graphnode.outMap != None:
-            writeSet = graphnode.call.getWriteVars()
-            for var in writeSet:
-                if var in graphnode.call.outMap:
-                    writeMap[graphnode.call.outMap[var]] = self.varMap[var]
-                else:
+        if not isinstance(graphnode, GraphPythonAgent):
+            writeMap = dict()
+            if isinstance(graphnode, GraphCall) and graphnode.outMap != None:
+                writeSet = graphnode.call.getWriteVars()
+                for var in writeSet:
+                    if var in graphnode.call.outMap:
+                        writeMap[graphnode.call.outMap[var]] = self.varMap[var]
+                    else:
+                        writeMap[var] = self.varMap[var]
+            else:
+                writeSet = graphnode.getWriteVars()
+                for var in writeSet:
                     writeMap[var] = self.varMap[var]
-        else:
-            writeSet = graphnode.getWriteVars()
-            for var in writeSet:
-                writeMap[var] = self.varMap[var]
-        scheduleNode.setOutVarMap(writeMap)
+            scheduleNode.setOutVarMap(writeMap)
         
         if self.parent is not None:
             self.parent.completed(scheduleNode)
@@ -578,7 +583,7 @@ class Scheduler:
             # Need start new Scheduler
             if isinstance(graphnode, GraphPythonAgent):
                 # Start scheduler for PythonAgent child
-                child = Scheduler(self.model, graphnode, self, self.engine)
+                child = Scheduler(self.model, scheduleNode, self, self.engine)
                 #Add a count for the PythonAgent task
                 child.windowSize = 1
                 self.engine.threadQueueItem(scheduleNode, child)
@@ -597,7 +602,7 @@ class Scheduler:
                         calleevar = graphnode.inMap[v]
                     inVarMap[v] = oldVarMap[calleevar]
 
-            child = Scheduler(self.model, graphnode, self, self.engine)
+            child = Scheduler(self.model, scheduleNode, self, self.engine)
             child.addTask(graphnode.getStart(), None, varMap = inVarMap)
         else:
             #Schedule the job

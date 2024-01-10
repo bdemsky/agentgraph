@@ -260,15 +260,15 @@ class GraphPythonAgent(GraphNested):
             inMap[name] = varMap[var]
 
         # Next, actually call the formatFunc to generate the prompt
-        out = self.pythonFunc(scheduler, *posList, **inMap)
+        retval = self.pythonFunc(scheduler, *posList, **inMap)
 
         # Construct outMap (Var -> Object) from outVars (name -> Var)
         # and omap (name -> Value)
         
-        outMap = list()
+        outMap = dict()
         index = 0
         for var in self.out:
-                outMap[var] = omap[index]
+                outMap[var] = retval[index]
                 index += 1
                 
         return outMap
@@ -304,7 +304,7 @@ class GraphPair:
         return createSequence([a, b])
     
 def checkInVars(pos: list, kw: dict):
-    mutSet = {}
+    mutSet = set()
     if kw is not None:
         for v, var in kw:
             if var.isMutable():
@@ -436,7 +436,7 @@ def createDoWhile(compute: GraphPair, branchvar: BoolVar) -> GraphPair:
     
     #Finish graph
     branch.setNext(1, compute.start)
-    branch.setNext(0, graph)
+    branch.setNext(0, None)
     
     #Save variable read/write results
     graph.setReadVars(readSet)
@@ -454,8 +454,8 @@ def createIfElse(condvar: BoolVar, thenN: GraphPair, elseN: GraphPair) -> GraphP
     graph = GraphNested(branch)
     branch.setNext(0, elseN.start)
     branch.setNext(1, thenN.start)
-    thenN.last.setNext(0, graph)
-    elseN.last.setNext(0, graph)
+    thenN.last.setNext(0, None)
+    elseN.last.setNext(0, None)
         
     #Combine variable reads/writes
     readSetThen.update(readSetElse)
@@ -472,7 +472,7 @@ def createRunnable(pair: GraphPair) -> GraphNested:
     """Encapsulates a GraphPair to make it runnable"""
     readSet, writeSet = analyzeLinear(pair.start, pair.end)
     graph = GraphNested(pair.start)
-    pair.end.setNext(0, graph)
+    pair.end.setNext(0, None)
         
     graph.setReadVars(readSet)
     graph.setWriteVars(writeSet)

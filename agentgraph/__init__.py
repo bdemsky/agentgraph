@@ -5,6 +5,7 @@ from agentgraph.core.prompts import Prompts
 from agentgraph.core.var import Var
 from agentgraph.core.mutvar import MutVar
 from agentgraph.core.boolvar import BoolVar
+from agentgraph.data.filestore import FileStore
 
 def getRootScheduler(model, eng: 'agentgraph.exec.engine.Engine' = None):
     """Creates a root scheduler."""

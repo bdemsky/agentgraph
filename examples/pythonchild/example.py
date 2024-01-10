@@ -4,7 +4,6 @@ import time
 
 
 def testFunc1(scheduler) -> list:
-    print(scheduler)
     prompts = agentgraph.Prompts("./examples/pythonchild/prompts/")
     sys = prompts.createPrompt("System")
     g = agentgraph.VarMap()
@@ -28,13 +27,11 @@ def testFunc1(scheduler) -> list:
     return []
 
 def testFunc2(scheduler, bar: int) -> list:
-    print(scheduler)
     print("TestB", bar)
     return []
 
 model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
 scheduler = agentgraph.getRootScheduler(model)
-print(scheduler)
 vmap = agentgraph.VarMap()
 var = vmap.mapToInt("test", 3)
 agentpair = agentgraph.createPythonAgent(testFunc1) | agentgraph.createPythonAgent(testFunc2, pos=[var])
