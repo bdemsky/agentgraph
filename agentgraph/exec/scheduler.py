@@ -299,7 +299,7 @@ class Scheduler:
         """
         gvar = GraphVarWait([self.dummyVar], self.condVar)
         varDict = dict()
-        varDict[gvar] = mutable
+        varDict[self.dummyVar] = mutable
         self.addTask(gvar, None, varDict)
         with self.condVar:
             while not gvar.isDone():
@@ -419,7 +419,6 @@ class Scheduler:
 
             # Update variable map with any of our dependencies
             for var in outVars:
-                print("XX", self, var.name)
                 self.varMap[var] = scheduleNode
 
             #Compute next node to scan
