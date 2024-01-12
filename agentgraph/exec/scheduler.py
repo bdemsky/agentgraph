@@ -133,7 +133,7 @@ class ScoreBoardNode:
         self.waiters = set()
         self.next = None
 
-    def isReader(self) -> bool:
+    def getIsReader(self) -> bool:
         """Returns true if the node in question is for readers."""
 
         return self.isReader
@@ -180,11 +180,11 @@ class ScoreBoard:
 
             return True
 
-        if not end.isReader():
+        if not end.getIsReader():
             # We need to allocate a new node because the end is not a
             # reader node.
             
-            scoreboardnode = ScoreBoardNode(true)
+            scoreboardnode = ScoreBoardNode(True)
             scoreboardnode.addWaiter(node)
             end.setNext(scoreboardnode)
             end = scoreboardnode

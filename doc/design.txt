@@ -32,15 +32,16 @@ current task.
 Short Term Todo Items:
 0. Start to do something with tool...
 1. Play with APIs to limit red tape.
-2. Code to snapshot variables automatically
+2. Code to snapshot variables
 3. Eliminate maps and just use variable names
-4. Early enabling variables from GraphExit Node
-5. 
-6. Build example
-7. Cost computation??
-8. Automatic failover to large model if we get a small model error?
-9. Speculative execution?
+4. Build example
+5. Cost computation??
+6. Automatic failover to large model if we get a small model error?
 
+
+Potential Todo Items:
+1. Early enabling variables from GraphExit Node
+2. Speculative execution?
 
 Long Term Todo Items:
 1. Support for RAG

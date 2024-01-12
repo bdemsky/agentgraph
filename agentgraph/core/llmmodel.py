@@ -82,6 +82,7 @@ class LLMModel:
         else:
             model_to_use = self.smallModel
             
+        retries = 0
         while True:
             try:
                 chat_completion = await self.client.chat.completions.create(messages=message_to_send, model=model_to_use, timeout=self.timeout)

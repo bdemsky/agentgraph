@@ -1,4 +1,5 @@
 import asyncio
+import traceback
 import threading
 
 from agentgraph.core.boolvar import BoolVar
@@ -74,7 +75,9 @@ class GraphVarWait(GraphNode):
             self.setDone()
             # Wake the waiters
             self._condVar.notify_all()
-    
+
+        return dict()
+            
 class GraphNested(GraphNode):
     """Nested CFG Node.  Used for control flow constructs such as
     If-Then-Else or a Loop."""
@@ -189,7 +192,7 @@ class GraphLLMAgent(GraphNode):
             except Exception as e:
                 print('Error', e)
                 print(traceback.format_exc())
-                return
+                return dict()
         else:
             posList = list()
             for var in self.pos:
@@ -324,11 +327,11 @@ def checkInVars(pos: list, kw: dict):
     if kw is not None:
         for v, var in kw:
             if var.isMutable() and var.isRead() and var.getVar() in mutSet:
-                raise RuntimeException(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
+                raise RuntimeError(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
     if pos is not None:
         for var in pos:
             if var.isMutable() and var.isRead() and var.getVar() in mutSet:
-                raise RuntimeException(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
+                raise RuntimeError(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
 
         
 class VarMap:
@@ -346,7 +349,7 @@ class VarMap:
             self._nameToVar[name] = BoolVar(name)
         return self._nameToVar[name]
 
-    def _getMutVariable(self, name: str) -> Var:
+    def _getMutVariable(self, name: str) -> MutVar:
         if not name in self._nameToVar:
             self._nameToVar[name] = MutVar(name)
         return self._nameToVar[name]

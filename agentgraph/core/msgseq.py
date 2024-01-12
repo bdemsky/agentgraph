@@ -1,3 +1,5 @@
+
+
 class MsgSeq:
     def __init__(self):
         pass
@@ -7,7 +9,7 @@ class MsgSeq:
 
     def concat(self, o: 'MsgSeq'):
         if self.isExchange() or o.isExchange():
-            raise RuntimeException(f"Can only concat/+ two message sequences.\n")
+            raise RuntimeError(f"Can only concat/+ two message sequences.\n")
 
         return MsgConcat(self, o)
 
@@ -19,7 +21,7 @@ class MsgSeq:
     
     def summarize(self):
         if self.isExchange():
-            raise RuntimeException(f"Can only summarize a message sequences.\n")
+            raise RuntimeError(f"Can only summarize a message sequences.\n")
         return MsgSummary(self)
 
     def __and__(a, b):
@@ -31,7 +33,7 @@ class MsgSeq:
     
     def interleave(self, o: 'MsgSeq'):
         if self.isExchange() or o.isExchange():
-            raise RuntimeException(f"Can only interleave message sequences.\n")
+            raise RuntimeError(f"Can only interleave message sequences.\n")
         return MsgInterleave(self, o)
 
     def __gt__(a, b):
@@ -42,7 +44,7 @@ class MsgSeq:
     
     def system(self, o: 'MsgSeq'):
         if not o.isExchange() and not o.isSingleMsg():
-            raise RuntimeException(f"The second part of a system operator must be a message sequence.\n")
+            raise RuntimeError(f"The second part of a system operator must be a message sequence.\n")
         return MsgSystem(self, o)
 
     def isExchange(self) -> bool:
@@ -52,7 +54,7 @@ class MsgSeq:
         return False
 
     def getVars(self) -> set:
-        return None
+        return set()
 
     def exec(self, varsMap: dict):
         pass
@@ -80,7 +82,7 @@ class MsgSummary(MsgSeq):
         return self.msg.getVars()
 
     def exec(self, varsMap: dict):
-        val = msg.exec(varsMap)
+        val = self.msg.exec(varsMap)
         return val.summary()
     
 class MsgInterleave(MsgSeq):
@@ -108,20 +110,20 @@ class MsgInterleave(MsgSeq):
         return seq
                 
 class MsgSystem(MsgSeq):
-    def __init__(self, system: MsgSeq, conv: MsgSeq):
+    def __init__(self, systemMsg: MsgSeq, conv: MsgSeq):
         super().__init__()
-        self.system = system
+        self.systemMsg = systemMsg
         self.conv = conv
 
     def getVars(self) -> set:
-        return self.system.getVars().union(self.conv.getVars())
+        return self.systemMsg.getVars().union(self.conv.getVars())
         
     def isExchange(self) -> bool:
         return True
 
     def exec(self, varsMap: dict):
         conv = self.conv.exec(varsMap)
-        systemmsg = self.system.exec(varsMap)
+        systemmsg = self.systemMsg.exec(varsMap)
         sys = [{"role": "system", "content": systemmsg.get(0)}]
         if self.conv.isSingleMsg():
             return sys + [{"role": "system", "content": conv.get(0)}]

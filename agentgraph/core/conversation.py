@@ -54,10 +54,6 @@ class Conversation(Mutable):
         self.waitForAccess()
         self.list.append(text)
 
-    def size(self) -> int:
-        self.waitForAccess()
-        return len(self.list)
-
     def __getitem__(self, index) -> str:
         self.waitForAccess()
         return self.list[index]
