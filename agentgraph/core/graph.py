@@ -9,6 +9,7 @@ from agentgraph.core.msgseq import MsgSeq
 from agentgraph.core.mutable import Mutable
 from agentgraph.core.mutvar import MutVar
 from agentgraph.core.var import Var
+import agentgraph.config
 
 class GraphNode:
     """Base Node For Nested CFG Representation of Program"""
@@ -202,7 +203,8 @@ class GraphLLMAgent(GraphNode):
 
             # Next, actually call the formatFunc to generate the prompt
             output = await self.formatFunc(*posList, **inMap)
-        print(output)
+        if agentgraph.config.VERBOSE > 0:
+            print("MODEL Request:\n", output)
         # Call the model
         model = self.model
         if model is None:
