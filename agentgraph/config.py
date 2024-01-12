@@ -4,3 +4,7 @@ MAX_WINDOW_SIZE = 64
 
 DEBUG_PATH = "./debug"
 # Debug path.  None if debugging is not enabled.
+
+
+VERBOSE = 1
+# Verbosity level.  Prints out messages sent to scheduler.

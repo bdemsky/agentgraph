@@ -183,7 +183,12 @@ class GraphLLMAgent(GraphNode):
         should be used for the execution."""
 
         if self.msg != None:
-            output = self.msg.exec(varMap)
+            try:
+                output = self.msg.exec(varMap)
+            except Exception as e:
+                print('Error', e)
+                print(traceback.format_exc())
+                return
         else:
             posList = list()
             for var in self.pos:

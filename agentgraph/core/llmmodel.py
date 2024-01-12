@@ -3,7 +3,7 @@ import hashlib
 import agentgraph.config
 import json
 from pathlib import Path
-from openai import AsyncAzureOpenAI
+from openai import AsyncAzureOpenAI, APITimeoutError
 
 class LLMModel:
     def __init__(self, endpoint, apikey, smallModel, largeModel, threshold):
@@ -86,7 +86,7 @@ class LLMModel:
             try:
                 chat_completion = await self.client.chat.completions.create(messages=message_to_send, model=model_to_use, timeout=self.timeout)
                 break
-            except openai.APITimeoutError as e:
+            except APITimeoutError as e:
                 retries+=1
                 if retries > 3:
                     raise Exception(f"Exceeded 3 retries")

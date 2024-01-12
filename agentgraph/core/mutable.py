@@ -19,6 +19,7 @@ class Mutable:
         
         from agentgraph.exec.scheduler import getCurrentTask, getCurrentScheduler
         currTask = getCurrentTask()
+
         # See if we already own this mutable
         if self._owner == currTask:
             return

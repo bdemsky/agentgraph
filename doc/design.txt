@@ -35,10 +35,12 @@ Short Term Todo Items:
 2. Code to snapshot variables automatically
 3. Eliminate maps and just use variable names
 4. Early enabling variables from GraphExit Node
-5. Build example
-6. Cost computation??
-7. Automatic failover to large model if we get a small model error?
-8. Speculative execution?
+5. 
+6. Build example
+7. Cost computation??
+8. Automatic failover to large model if we get a small model error?
+9. Speculative execution?
+
 
 Long Term Todo Items:
 1. Support for RAG

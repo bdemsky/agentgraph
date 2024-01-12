@@ -45,7 +45,12 @@ class ScheduleNode:
             return False
         self.refs.add(ref)
         return True
-        
+
+    def assertOwnership(self):
+        for ref in self.refs:
+            if isinstance(ref, agentgraph.core.mutable.Mutable):
+                ref.setOwner(self)
+                
     def setDepCount(self, depCount: int):
         """Sets Dependency count"""
         
@@ -221,7 +226,7 @@ class ScoreBoard:
             first.getWaiters().remove(node)
             if len(first.getWaiters()) == 0:
                 if first == last:
-                    self.accesses[object] = None
+                    del self.accesses[object]
                 else:
                     self.accesses[object] = (first.getNext(), last)
                     #Update scheduler
@@ -318,15 +323,17 @@ class Scheduler:
                 self.condVar.wait()
         return gvar[var]
                 
-    def addTask(self, node: GraphNode, vm: VarMap, varMap: dict = None):
+    def addTask(self, node: GraphNode, vm: VarMap = None, varMap: dict = None):
         """
         Adds a new task for the scheduler to run.
         node - a GraphNode to run
         varMap - a map of Vars to values
         """
 
-        if vm != None:
+        if vm is not None:
             varMap = vm.getVarMap()
+        if varMap is None:
+            varMap = dict()
         taskNode = TaskNode(node, varMap)
 
         if self.endTasks == None:
@@ -438,7 +445,7 @@ class Scheduler:
             else:
                 self.windowSize += 1
                 if (depCount == 0):
-                    self.startBaseTask(scheduleNode)
+                    self.startNestedTask(scheduleNode)
                 
                 node = node.getNext(0)
                 
@@ -573,10 +580,12 @@ class Scheduler:
             print("This should not happen!")
 
             
-    def startBaseTask(self, scheduleNode: ScheduleNode):
+    def startNestedTask(self, scheduleNode: ScheduleNode):
         """Starts task."""
         
         graphnode = scheduleNode.getGraphNode()
+
+        scheduleNode.assertOwnership()
         
         if isinstance(graphnode, GraphNested):
             # Need start new Scheduler
@@ -618,7 +627,7 @@ class Scheduler:
             graphnode = graphnode.getNext(edge)
             self.scan(graphnode)
         else:
-            self.startBaseTask(scheduleNode)
+            self.startNestedTask(scheduleNode)
 
     def shutdown(self):
         """Shutdown the engine.  Care should be taken to ensure engine
