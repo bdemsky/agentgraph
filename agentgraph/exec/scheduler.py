@@ -504,7 +504,7 @@ class Scheduler:
                 n.setInVarVal(var, val)
                 if var.isMutable():
                     #If variable is mutable, register the heap dependence
-                    if handleReference(n, var, val) == 0:
+                    if self.handleReference(n, var, val) == 0:
                         #Only do decrement if we didn't just transfer the count to a heap dependence
                         self.decDepCount(n)
                 else:
@@ -600,14 +600,14 @@ class Scheduler:
             inVarMap = scheduleNode.getInVarMap()            
             # If we are calling another graph, then need to do some
             # variable remapping
-            if isinstance(graphnode, GraphCall) and graphnode.inMap != None:
+            if isinstance(graphnode, GraphCall) and graphnode.getInMap() != None:
                 oldVarMap = inVarMap
                 inVarMap = dict()
-                readVars = graphnode.call.getReadVars();
+                readVars = graphnode.getCallee().getReadVars();
                 for v in readVars:
                     calleevar = v
-                    if v in graphnode.inMap:
-                        calleevar = graphnode.inMap[v]
+                    if v in graphnode.getInMap():
+                        calleevar = graphnode.getInMap()[v]
                     inVarMap[v] = oldVarMap[calleevar]
 
             child = Scheduler(self.model, scheduleNode, self, self.engine)

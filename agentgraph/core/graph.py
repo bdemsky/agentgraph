@@ -124,9 +124,15 @@ class GraphCall(GraphNested):
     def setCallee(self, call: GraphNode):
         self._call = call
 
+    def getCallee(self) -> GraphNode:
+        return self._call
+        
     def setInMap(self, inMap: dict):
         self._inMap = inMap
 
+    def getInMap(self) -> dict:
+        return self._inMap
+        
     def setOutMap(self, outMap: dict):
         self._outMap = outMap
         
