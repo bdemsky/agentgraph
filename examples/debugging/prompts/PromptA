@@ -1,0 +1,252 @@
+{% raw %}
+The task at hand is to implement a command line based full featured scientic calculator in C that supports standard feature including trig functions and parenthesis. The calculator should take the problem instance from the command line. You should compile the program such that it can be executed by typing ./calculator.  For example, ./calculator "sin(90) + 1" should print 2. 
+ ./calculator "3 * (2 + 4)" should print 18. 
+ ./calculator "1/2" should print 0.5. ./calculator "1.5 * 2.0" should print 3.  ./calculator "2*(1+3*(2-1))" should print 8.
+We currently have these files:
+test.sh
+'''
+#!/bin/sh
+
+exitcode=0;
+# Add test case function
+run_test() {
+  result=$(./calculator "$1")
+  if [ "$result" != "$2" ]; then
+    echo "Test case failed: $1"
+    echo "Expected $2, but got $result"
+    exitcode=1;
+  fi
+}
+
+# run tests
+run_test "sin(90) + 1" "2.0"
+run_test "3 * (2 + 4)" "18.0"
+run_test "1/2" "0.5"
+run_test "1.5 * 2.0" "3.0"
+run_test "2*(1+3*(2-1))" "8.0"
+run_test "0*1" "0.0"
+run_test "100+200" "300.0"
+run_test "300-100" "200.0"
+run_test "100/100" "1.0"
+run_test "2^2" "4.0"
+run_test "5!" "120.0"
+run_test "sqrt(4)" "2.0"
+run_test "abs(-10)" "10.0"
+run_test "log(1)" "0.0"
+run_test "3^2" "9.0"
+run_test "0^0" "1.0"  # should be undefined or error, but most calculator will return 1 by convention.
+run_test "-69*(-1)" "69.0"
+run_test "tan(45)" "1.0"
+run_test "1/0" "inf"
+run_test "sqrt(-1)" "NaN"
+
+if [ "$exitcode" -eq "0" ]; then
+  echo "All tests passed successfully."
+else
+  echo "One or more test cases failed."
+fi
+exit $exitcode
+
+'''
+
+main.c
+'''
+#include <stdio.h>
+#include "calculator.h"
+
+int main(int argc, char **argv) {
+    if(argc <= 1) {
+        printf("No expression provided.\n");
+        return 1;
+    }
+    
+    double result = 0.0;
+    operands values;
+    
+    for(int i = 1; i < argc; i += 2) {
+        if(i == 1) {
+            values.value1 = atof(argv[i]);
+            result = values.value1;
+            continue;
+        }
+        
+        values.value1 = result;
+        values.value2 = atof(argv[i+1]);
+        
+        switch(argv[i][0]) {
+            case '+':
+                result = add(values);
+                break;
+            case '-':
+                result = subtract(values);
+                break;
+            case '*':
+                result = multiply(values);
+                break;
+            case '/':
+                if(values.value2 == 0.0) {
+                    printf("Error: Division by zero.\n");
+                    return 1;
+                }
+                result = divide(values);
+                break;
+            default:
+                printf("Error: Unknown operator %c.\n", argv[i][0]);
+                return 1;
+        }
+    }
+    
+    printf("%f\n", result);
+    return 0;
+}
+
+'''
+
+compile.sh
+'''
+#!/bin/sh
+
+# Compile the individual c files into object files
+gcc -Wall -g -c main.c add.c subtract.c multiply.c divide.c sine.c sqrt.c
+
+# Link all the object files together creating the executable
+gcc -o calculator main.o add.o subtract.o multiply.o divide.o sine.o sqrt.o -lm
+
+'''
+
+sqrt.c
+'''
+#include <math.h>
+#include "calculator.h"
+
+double square_root(operands values) {
+    if(values.value1 >= 0) {
+        return sqrt(values.value1);
+    } else {
+        return 0.0; // should handle error properly for square root of a negative number
+    }
+}
+
+'''
+
+sine.c
+'''
+#include <math.h>
+#include "calculator.h"
+
+double sine(operands values) {
+    return sin(values.value1);
+}
+
+'''
+
+divide.c
+'''
+#include "calculator.h"
+
+double divide(operands values) {
+    if(values.value2 != 0) {
+        return values.value1 / values.value2;
+    } else {
+        return 0.0; // should handle error properly for division by zero
+    }
+}
+
+'''
+
+multiply.c
+'''
+#include "calculator.h"
+
+double multiply(operands values) {
+    return values.value1 * values.value2;
+}
+
+'''
+
+subtract.c
+'''
+#include "calculator.h"
+
+double subtract(operands values) {
+    return values.value1 - values.value2;
+}
+
+'''
+
+add.c
+'''
+#include "calculator.h"
+
+double add(operands values) {
+    return values.value1 + values.value2;
+}
+
+'''
+
+calculator.h
+'''
+#ifndef __CALCULATOR_H__
+#define __CALCULATOR_H__
+
+typedef struct {
+    double value1;
+    double value2;
+} operands;
+
+double add(operands values);
+double subtract(operands values);
+double multiply(operands values);
+double divide(operands values);
+double sine(operands values);
+double square_root(operands values);
+int main(int argc, char **argv);
+
+#endif
+
+'''
+These are the results of the tests:
+Test failed with the following message:
+Test case failed: sin(90) + 1
+Expected 2.0, but got 0.000000
+Test case failed: 3 * (2 + 4)
+Expected 18.0, but got 0.000000
+Test case failed: 1/2
+Expected 0.5, but got 0.000000
+Test case failed: 1.5 * 2.0
+Expected 3.0, but got 0.000000
+Test case failed: 2*(1+3*(2-1))
+Expected 8.0, but got 0.000000
+Test case failed: 0*1
+Expected 0.0, but got 0.000000
+Test case failed: 100+200
+Expected 300.0, but got 0.000000
+Test case failed: 300-100
+Expected 200.0, but got 0.000000
+Test case failed: 100/100
+Expected 1.0, but got 0.000000
+Test case failed: 2^2
+Expected 4.0, but got 0.000000
+Test case failed: 5!
+Expected 120.0, but got 0.000000
+Test case failed: sqrt(4)
+Expected 2.0, but got 0.000000
+Test case failed: abs(-10)
+Expected 10.0, but got 0.000000
+Test case failed: log(1)
+Expected 0.0, but got 0.000000
+Test case failed: 3^2
+Expected 9.0, but got 0.000000
+Test case failed: 0^0
+Expected 1.0, but got 0.000000
+Test case failed: -69*(-1)
+Expected 69.0, but got 0.000000
+Test case failed: tan(45)
+Expected 1.0, but got 0.000000
+Test case failed: 1/0
+Expected inf, but got 0.000000
+Test case failed: sqrt(-1)
+Expected NaN, but got 0.000000
+One or more test cases failed.
+Please give the gdb command to debug this problem.
+{% endraw %}
