@@ -9,16 +9,14 @@ def testFunc1(scheduler) -> list:
     g = agentgraph.VarMap()
     ovarA = agentgraph.Var("Recipe")
     pA = prompts.createPrompt("PromptA")
-    agentA = agentgraph.createLLMAgent(ovarA, msg = sys > pA)
-    scheduler.addTask(agentA.start, g)
+    scheduler.runLLMAgent(ovarA, msg = sys > pA, vmap = g)
     ovarR = ovarA
     
     for i in range(3):
         pB = prompts.createPrompt("PromptB", {ovarR})
         gnew = agentgraph.VarMap()
         ovarB = agentgraph.Var("Recipe")
-        agentB = agentgraph.createLLMAgent(ovarB, msg = sys > pB)
-        scheduler.addTask(agentB.start, gnew)
+        scheduler.runLLMAgent(ovarB, msg = sys > pB, vmap = gnew)
         ovarR = ovarB
 
     print("Tasks Enqueued")
@@ -34,6 +32,6 @@ model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.gete
 scheduler = agentgraph.getRootScheduler(model)
 vmap = agentgraph.VarMap()
 var = vmap.mapToInt("test", 3)
-agentpair = agentgraph.createPythonAgent(testFunc1) | agentgraph.createPythonAgent(testFunc2, pos=[var])
-scheduler.addTask(agentpair.start, vmap)
+scheduler.runPythonAgent(testFunc1, vmap=vmap)
+scheduler.runPythonAgent(testFunc2, pos=[var])
 scheduler.shutdown()

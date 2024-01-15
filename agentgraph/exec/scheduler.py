@@ -5,9 +5,10 @@ import threading
 import traceback
 
 from agentgraph.exec.engine import Engine
-from agentgraph.core.graph import VarMap, GraphCall, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent, GraphVarWait
+from agentgraph.core.graph import VarMap, GraphCall, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent, GraphVarWait, createPythonAgent, createLLMAgent
 from agentgraph.core.mutvar import MutVar
 from agentgraph.core.var import Var
+from agentgraph.core.msgseq import MsgSeq
 from agentgraph.core.llmmodel import LLMModel
 import agentgraph.config
 
@@ -385,6 +386,12 @@ class Scheduler:
             value = task.getVarMap()[var]
             self.varMap[var] = value
         self.engine.runScan(task.getNode(), self)
+
+    def runPythonAgent(self, pythonFunc, pos: list = None, kw: dict = None, out: list = None, vmap: VarMap = None):
+        self.addTask(createPythonAgent(pythonFunc, pos, kw, out).start, vmap)
+
+    def runLLMAgent(self, outVar: Var, conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, pos: list = None, kw: dict = None, vmap: VarMap = None):
+        self.addTask(createLLMAgent(outVar, conversation, model, msg, formatFunc, pos, kw).start, vmap)
 
     def checkFinishScope(self):
         if self.windowSize == 0:

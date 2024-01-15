@@ -15,6 +15,6 @@ model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.gete
 scheduler = agentgraph.getRootScheduler(model)
 vmap = agentgraph.VarMap()
 var = vmap.mapToInt("test", 3)
-agentpair = agentgraph.createPythonAgent(testFunc1, pos=[var]) | agentgraph.createPythonAgent(testFunc2, pos=[var])
-scheduler.addTask(agentpair.start, vmap)
+scheduler.runPythonAgent(testFunc1, pos=[var], vmap=vmap)
+scheduler.runPythonAgent(testFunc2, pos=[var])
 scheduler.shutdown()
