@@ -19,9 +19,9 @@ fs = agentgraph.FileStore()
 varfs = vmap.mapToMutable("test", fs)
 vara = agentgraph.Var("A")
 varb = agentgraph.Var("B")
-agentpair = agentgraph.createPythonAgent(testFunc1, pos=[varfs], out = [vara]) | agentgraph.createPythonAgent(testFunc2, pos=[varfs], out=[varb])
 fs["a"]="0"
-scheduler.addTask(agentpair.start, vmap)
+scheduler.runPythonAgent(testFunc1, pos=[varfs], out=[vara], vmap = vmap)
+scheduler.runPythonAgent(testFunc2, pos=[varfs], out=[varb])
 
 print(fs["a"])
 print(vara.getValue())

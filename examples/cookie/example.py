@@ -11,16 +11,14 @@ sys = prompts.createPrompt("System")
 g = agentgraph.VarMap()
 ovarA = agentgraph.Var("Recipe")
 pA = prompts.createPrompt("PromptA")
-agentA = agentgraph.createLLMAgent(ovarA, msg = sys > pA)
-scheduler.addTask(agentA.start, g)
+scheduler.runLLMAgent(ovarA, msg = sys > pA, vmap = g)
 ovarR = ovarA
 
 for i in range(3):
     pB = prompts.createPrompt("PromptB", {ovarR})
     gnew = agentgraph.VarMap()
     ovarB = agentgraph.Var("Recipe")
-    agentB = agentgraph.createLLMAgent(ovarB, msg = sys > pB)
-    scheduler.addTask(agentB.start, gnew)
+    scheduler.runLLMAgent(ovarB, msg = sys > pB, vmap = gnew)
     ovarR = ovarB
     
 print("Tasks Enqueued")
