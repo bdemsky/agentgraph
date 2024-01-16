@@ -28,7 +28,7 @@ class Prompts:
     def __init__(self, path: str):
         self.path = path
 
-    def createPrompt(self, prompt_name: str, vars: set = None) -> Prompt:
+    def loadPrompt(self, prompt_name: str, vars: set = None) -> Prompt:
         if vars == None:
             vars = set()
         return Prompt(self, prompt_name, vars)

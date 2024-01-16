@@ -5,15 +5,15 @@ import time
 
 def testFunc1(scheduler) -> list:
     prompts = agentgraph.Prompts("./examples/pythonchild/prompts/")
-    sys = prompts.createPrompt("System")
+    sys = prompts.loadPrompt("System")
     g = agentgraph.VarMap()
     ovarA = agentgraph.Var("Recipe")
-    pA = prompts.createPrompt("PromptA")
+    pA = prompts.loadPrompt("PromptA")
     scheduler.runLLMAgent(ovarA, msg = sys > pA, vmap = g)
     ovarR = ovarA
     
     for i in range(3):
-        pB = prompts.createPrompt("PromptB", {ovarR})
+        pB = prompts.loadPrompt("PromptB", {ovarR})
         gnew = agentgraph.VarMap()
         ovarB = agentgraph.Var("Recipe")
         scheduler.runLLMAgent(ovarB, msg = sys > pB, vmap = gnew)

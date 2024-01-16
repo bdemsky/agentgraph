@@ -7,9 +7,9 @@ model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.gete
 scheduler = agentgraph.getRootScheduler(model)
 prompts = agentgraph.Prompts("./examples/chat/prompts/")
 
-sysA = prompts.createPrompt("SystemA")
-sysB = prompts.createPrompt("SystemB")
-pA = prompts.createPrompt("PromptA")
+sysA = prompts.loadPrompt("SystemA")
+sysB = prompts.loadPrompt("SystemB")
+pA = prompts.loadPrompt("PromptA")
 ovarA = agentgraph.Var("OutA")
 ovarB = agentgraph.Var("OutB")
 varmap = agentgraph.VarMap()
