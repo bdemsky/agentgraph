@@ -164,15 +164,15 @@ class GraphCall(GraphNested):
 class GraphLLMAgent(GraphNode):
     """Run some action.  This is a LLM Agent."""
     
-    def __init__(self, outVar: Var,  conversation: Var, model: LLMModel, msg: MsgSeq, formatFunc, kw: dict, pos:list):
+    def __init__(self, outVar: Var,  conversation: Var, model: LLMModel, msg: MsgSeq, formatFunc, pos: list, kw: dict):
         super().__init__()
         self.outVar = outVar
         self.conversation = conversation
         self.model = model
         self.msg = msg
         self.formatFunc = formatFunc
-        self.kw = kw if kw != None else {}
         self.pos = pos if pos != None else []
+        self.kw = kw if kw != None else {}
         
     def getReadVars(self) -> list:
         l = list(self.kw.values())
