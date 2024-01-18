@@ -29,11 +29,11 @@ def run_gdb(scheduler, cmd):
         output += gdb_process.stdout.read(6).decode()
     return [output]
 
-sysA = prompts.createPrompt("SystemA")
-pA = prompts.createPrompt("PromptA")
+sysA = prompts.loadPrompt("SystemA")
+pA = prompts.loadPrompt("PromptA")
 ovarA = agentgraph.Var("OutA")
 gdb_out = agentgraph.Var("gdb_out")
-pgdb = prompts.createPrompt("PromptGDB", {gdb_out})
+pgdb = prompts.loadPrompt("PromptGDB", {gdb_out})
 varmap = agentgraph.VarMap()
 convA = varmap.mapToConversation("AgentA")
 convGDB = varmap.mapToConversation("GDB")
