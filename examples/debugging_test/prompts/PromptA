@@ -1,0 +1,15 @@
+The task at hand is to implement a command line based full featured scientic calculator in C that supports standard feature including trig functions and parenthesis. The calculator should take the problem instance from the command line. You should compile the program such that it can be executed by typing ./calculator.  For example, ./calculator "sin(90) + 1" should print 2. 
+ ./calculator "3 * (2 + 4)" should print 18. 
+ ./calculator "1/2" should print 0.5. ./calculator "1.5 * 2.0" should print 3.  ./calculator "2*(1+3*(2-1))" should print 8.
+We currently have these files:
+
+{% for fileName in FileStore %}
+{{fileName}}
+```
+{{FileStore[fileName]}}
+```
+{% endfor %}
+
+These are the results of the tests:
+{{OutTest}}
+Please give the gdb command to debug the error, starting with running gdb.
