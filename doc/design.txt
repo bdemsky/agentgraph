@@ -35,8 +35,10 @@ Short Term Todo Items:
 2. Code to snapshot variables
 3. Eliminate maps and just use variable names
 4. Build example
-5. Cost computation??
+5. Cost computation/management??
 6. Automatic failover to large model if we get a small model error?
+7. Passing in objects directly.
+8. 
 
 
 Potential Todo Items:

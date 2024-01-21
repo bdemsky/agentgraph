@@ -8,17 +8,15 @@ scheduler = agentgraph.getRootScheduler(model)
 prompts = agentgraph.Prompts("./examples/cookie/prompts/")
 
 sys = prompts.loadPrompt("System")
-g = agentgraph.VarMap()
 ovarA = agentgraph.Var("Recipe")
 pA = prompts.loadPrompt("PromptA")
-scheduler.runLLMAgent(ovarA, msg = sys > pA, vmap = g)
+scheduler.runLLMAgent(ovarA, msg = sys > pA)
 ovarR = ovarA
 
 for i in range(3):
     pB = prompts.loadPrompt("PromptB", {ovarR})
-    gnew = agentgraph.VarMap()
     ovarB = agentgraph.Var("Recipe")
-    scheduler.runLLMAgent(ovarB, msg = sys > pB, vmap = gnew)
+    scheduler.runLLMAgent(ovarB, msg = sys > pB)
     ovarR = ovarB
     
 print("Tasks Enqueued")

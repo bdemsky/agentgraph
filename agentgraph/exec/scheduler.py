@@ -3,9 +3,10 @@ import contextvars
 import sys
 import threading
 import traceback
+import time
 
 from agentgraph.exec.engine import Engine
-from agentgraph.core.graph import VarMap, GraphCall, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent, GraphVarWait, createPythonAgent, createLLMAgent
+from agentgraph.core.graph import VarMap, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent, GraphVarWait, createPythonAgent, createLLMAgent
 from agentgraph.core.mutvar import MutVar
 from agentgraph.core.var import Var
 from agentgraph.core.msgseq import MsgSeq
@@ -349,17 +350,20 @@ class Scheduler:
             self.runTask(taskNode)
 
     def checkForMutables(self, node: GraphNode, varMap: dict):
-        """ Handle and references to mutable objects."""
+        """Handle and references to mutable objects.  If an mutable
+        object is owned by the parent task, revoke ownership."""
         writeSet = set()
         currSchedulerTask = getCurrentTask()
         while node is not None:
-            for v in node.getReadVars():
-                # See if v is written by some prior task and thus by
-                # assumption is not a mutable the parent has access
-                # to.
-                if v in writeSet:
+            for v in node.getReadSet():
+                if not isinstance(v, agentgraph.core.var.Var):
+                    value = v
+                elif v in writeSet:
+                    # See if v is written by some prior task and thus by
+                    # assumption is not a mutable the parent has access
+                    # to.
                     continue
-                if v in varMap:
+                elif v in varMap:
                     value = varMap[v]
                 elif v in self.varMap:                
                     value = self.varMap[v]
@@ -382,6 +386,8 @@ class Scheduler:
         
     def runTask(self, task: TaskNode):
         """Starts up the first task."""
+
+        # Update scheduler variable map with task variable map...
         for var in task.getVarMap():
             value = task.getVarMap()[var]
             self.varMap[var] = value
@@ -404,13 +410,19 @@ class Scheduler:
                 print("BAD")
                 return
             depCount = 0
-            inVars = node.getReadVars()
+            inVars = node.getReadSet()
             outVars = node.getWriteVars()
 
             scheduleNode = ScheduleNode(node)
 
             # Compute our set of dependencies
             for var in inVars:
+                # Not a variable, so see if it is a Mutable
+                if not isinstance(var, agentgraph.core.var.Var):
+                    if isinstance(var, agentgraph.core.mutable.Mutable):
+                        scheduleNode.addRef(var)
+                    continue
+                
                 lookup = self.varMap[var]
                 if isinstance(lookup, ScheduleNode):
                     # Variable mapped to schedule node, which means we
@@ -568,17 +580,9 @@ class Scheduler:
         #Need to build value map to record the values the nested graph outputs
         if not isinstance(graphnode, GraphPythonAgent):
             writeMap = dict()
-            if isinstance(graphnode, GraphCall) and graphnode.outMap != None:
-                writeSet = graphnode.call.getWriteVars()
-                for var in writeSet:
-                    if var in graphnode.call.outMap:
-                        writeMap[graphnode.call.outMap[var]] = self.varMap[var]
-                    else:
-                        writeMap[var] = self.varMap[var]
-            else:
-                writeSet = graphnode.getWriteVars()
-                for var in writeSet:
-                    writeMap[var] = self.varMap[var]
+            writeSet = graphnode.getWriteVars()
+            for var in writeSet:
+                writeMap[var] = self.varMap[var]
             scheduleNode.setOutVarMap(writeMap)
         
         if self.parent is not None:
@@ -605,18 +609,6 @@ class Scheduler:
                 return
             
             inVarMap = scheduleNode.getInVarMap()            
-            # If we are calling another graph, then need to do some
-            # variable remapping
-            if isinstance(graphnode, GraphCall) and graphnode.getInMap() != None:
-                oldVarMap = inVarMap
-                inVarMap = dict()
-                readVars = graphnode.getCallee().getReadVars();
-                for v in readVars:
-                    calleevar = v
-                    if v in graphnode.getInMap():
-                        calleevar = graphnode.getInMap()[v]
-                    inVarMap[v] = oldVarMap[calleevar]
-
             child = Scheduler(self.model, scheduleNode, self, self.engine)
             child.addTask(graphnode.getStart(), None, varMap = inVarMap)
         else:
@@ -643,5 +635,9 @@ class Scheduler:
         if (self.parent is not None):
             raise RuntimeException("Calling shutdown on non-parent Scheduler.")
         else:
+            # Make sure there are no tasks in flight
+            while self.windowSize != 0:
+                time.sleep(0.001)
+            # All good, shutdown the system
             self.engine.shutdown()
             self.getDefaultModel().print_statistics()

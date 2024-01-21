@@ -28,7 +28,7 @@ class GraphNode:
         
         return self._next[index]
 
-    def getReadVars(self) -> list:
+    def getReadSet(self) -> list:
         """Gets list of variables this CFG node may read from."""
         
         return []
@@ -61,7 +61,7 @@ class GraphVarWait(GraphNode):
     def getCondVar(self):
         return self._condVar
     
-    def getReadVars(self) -> list:
+    def getReadSet(self) -> list:
         return self._readList
 
     async def execute(self, varMap: dict) -> dict:
@@ -93,7 +93,7 @@ class GraphNested(GraphNode):
         
         return self._start
 
-    def getReadVars(self) -> list:
+    def getReadSet(self) -> list:
         return self._readVars
         
     def getWriteVars(self) -> list:
@@ -105,66 +105,10 @@ class GraphNested(GraphNode):
     def setWriteVars(self, writeVars: list):
         self._writeVars = writeVars
 
-class GraphCall(GraphNested):
-    """Calls another graph."""
-
-    def __init__(self):
-        """inMap maps caller parameters Vars to the callee Vars that provide the value.
-
-        outMap maps caller return Vars to the callee Vars that should be assigned."""
-        
-        super().__init__(None)
-        self._call = None
-        self._inMap = None
-        self._outMap = None
-
-    def getStart(self) -> GraphNode:
-        return self._call.getStart()
-        
-    def setCallee(self, call: GraphNode):
-        self._call = call
-
-    def getCallee(self) -> GraphNode:
-        return self._call
-        
-    def setInMap(self, inMap: dict):
-        self._inMap = inMap
-
-    def getInMap(self) -> dict:
-        return self._inMap
-        
-    def setOutMap(self, outMap: dict):
-        self._outMap = outMap
-        
-    def getReadVars(self) -> list:
-        varList = list()
-        for v in self._call.readVars():
-            newvar = v
-            if self._inMap != None:
-                if v in self._inMap:
-                    newvar = self._inMap[v]
-                
-            if not newvar in varList:
-                varList.append(newvar)
-        return varList
-        
-    def getWriteVars(self) -> list:
-        varList = list()
-        for v in self._call.writeVars():
-            newvar = v
-            if self._outMap != None:
-                if v in self._outMap:
-                    newvar = self._outMap[v]
-                
-            if not newvar in varList:
-                varList.append(newvar)
-        return varList
-        
-        
 class GraphLLMAgent(GraphNode):
     """Run some action.  This is a LLM Agent."""
     
-    def __init__(self, outVar: Var,  conversation: Var, model: LLMModel, msg: MsgSeq, formatFunc, pos: list, kw: dict):
+    def __init__(self, outVar: Var,  conversation, model: LLMModel, msg: MsgSeq, formatFunc, pos: list, kw: dict):
         super().__init__()
         self.outVar = outVar
         self.conversation = conversation
@@ -174,7 +118,7 @@ class GraphLLMAgent(GraphNode):
         self.pos = pos if pos != None else []
         self.kw = kw if kw != None else {}
         
-    def getReadVars(self) -> list:
+    def getReadSet(self) -> list:
         l = list(self.kw.values())
         l.extend(self.pos)
         if self.conversation is not None:
@@ -201,14 +145,20 @@ class GraphLLMAgent(GraphNode):
                 return dict()
         else:
             posList = list()
-            for var in self.pos:
-                posList.append(varMap[var])
+            for o in self.pos:
+                if isinstance(o, agentgraph.core.var.Var):
+                    posList.append(varMap[o])
+                else:
+                    posList.append(o)
 
             inMap = dict()
             # First, compose dictionary for inVars (str -> Var) and varMap
             # (Var -> Value) to generate inMap (str -> Value)
             for name, var in self.kw:
-                inMap[name] = varMap[var]
+                if isinstance(o, agentgraph.core.var.Var):
+                    inMap[name] = varMap[o]
+                else:
+                    inMap[name] = o
 
             # Next, actually call the formatFunc to generate the prompt
             output = await self.formatFunc(*posList, **inMap)
@@ -223,8 +173,11 @@ class GraphLLMAgent(GraphNode):
         outStr = await model.sendData(output)
         # Update conversation
         if self.conversation is not None:
-            varMap[self.conversation].push(outStr)
-        
+            if isinstance(self.conversation, agentgraph.core.var.Var):            
+                varMap[self.conversation].push(outStr)
+            else:
+                self.conversation.push(outStr)
+                
         # Put result in output map
         outMap = dict()
         outMap[self.outVar] = outStr
@@ -251,7 +204,7 @@ class GraphPythonAgent(GraphNested):
         self.kw = kw if kw != None else {}
         self.out = out if out != None else []
 
-    def getReadVars(self) -> list:
+    def getReadSet(self) -> list:
         return list(self.kw.values()) + self.pos
         
     def getWriteVars(self) -> list:
@@ -265,16 +218,22 @@ class GraphPythonAgent(GraphNested):
 
         # Build positional variables
         posList = list()
-        for var in self.pos:
-            posList.append(varMap[var])
+        for o in self.pos:
+            if isinstance(o, agentgraph.core.var.Var):
+                posList.append(varMap[o])
+            else:
+                posList.append(o)
         
         # First, compose dictionary for inVars (str -> Var) and varMap
         # (Var -> Value) to generate inMap (str -> Value)
         
         inMap = dict()
-        for name, var in self.kw:
-            inMap[name] = varMap[var]
-
+        for name, o in self.kw:
+            if isinstance(o, agentgraph.core.var.Var):
+                inMap[name] = varMap[o]
+            else:
+                inMap[name] = o
+                
         # Next, actually call the formatFunc to generate the prompt
         retval = self.pythonFunc(scheduler, *posList, **inMap)
 
@@ -286,7 +245,6 @@ class GraphPythonAgent(GraphNested):
         for var in self.out:
                 outMap[var] = retval[index]
                 index += 1
-
                 
         return outMap
     
@@ -307,7 +265,7 @@ class GraphNodeBranch(GraphNode):
     def getBranchVar(self) -> BoolVar:
         return self.branchVar
 
-    def getReadVars(self) -> list:
+    def getReadSet(self) -> list:
         return [self.branchVar]
     
 class GraphPair:
@@ -324,19 +282,19 @@ def checkInVars(pos: list, kw: dict):
     mutSet = set()
     if kw is not None:
         for v, var in kw:
-            if var.isMutable():
+            if isinstance(var, agentgraph.core.var.Var) and var.isMutable():
                 mutSet.add(var)
     if pos is not None:
         for var in pos:
-            if var.isMutable():
+            if isinstance(var, agentgraph.core.var.Var) and var.isMutable():
                 mutSet.add(var)
     if kw is not None:
         for v, var in kw:
-            if var.isMutable() and var.isRead() and var.getVar() in mutSet:
+            if isinstance(var, agentgraph.core.var.Var) and var.isMutable() and var.isRead() and var.getVar() in mutSet:
                 raise RuntimeError(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
     if pos is not None:
         for var in pos:
-            if var.isMutable() and var.isRead() and var.getVar() in mutSet:
+            if isinstance(var, agentgraph.core.var.Var) and var.isMutable() and var.isRead() and var.getVar() in mutSet:
                 raise RuntimeError(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
 
         
@@ -510,6 +468,6 @@ def analyzeLinear(start: GraphNode, end: GraphNode) -> tuple[set, set]:
         n = list[i]
         writeSet.update(n.getWriteVars())
         readSet.difference_update(n.getWriteVars())
-        readSet.update(n.getReadVars())
+        readSet.update(n.getReadSet())
         
     return (readSet, writeSet)
