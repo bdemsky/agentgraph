@@ -1,5 +1,5 @@
-from jinja2 import Environment, FileSystemLoader
 from agentgraph.core.conversation import Conversation
+from agentgraph.core.jinjamanager import JinjaManager
 from agentgraph.core.msgseq import MsgSeq
 
 class Prompt(MsgSeq):
@@ -18,28 +18,15 @@ class Prompt(MsgSeq):
         for var in varsMap:
             value = varsMap[var]
             data[var.getName()] = value
-        val = self.prompts.runPrompt(self.name, data)
+        val = self.prompts.runTemplate(self.name, data)
         return Conversation(val)
 
     def getVars(self) -> set:
         return self.vars
-    
-class Prompts:
-    def __init__(self, path: str):
-        self.path = path
+
+class Prompts(JinjaManager):
 
     def loadPrompt(self, prompt_name: str, vars: set = None) -> Prompt:
         if vars == None:
             vars = set()
         return Prompt(self, prompt_name, vars)
-
-    def runPrompt(self, prompt_name: str, data: dict) -> str:
-        if data == None:
-            data = dict()
-        
-        file_loader = FileSystemLoader(self.path)
-        env = Environment(loader = file_loader)
-        template = env.get_template(prompt_name)
-        output = template.render(data)
-
-        return output

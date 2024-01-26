@@ -1,7 +1,8 @@
-from agentgraph.core.graph import VarMap, createLLMAgent, createPythonAgent, createSequence, createDoWhile, createIfElse, createRunnable
+from agentgraph.core.graph import VarMap, createLLMAgent, createLLMAgentWithFuncs, createPythonAgent, createSequence, createDoWhile, createIfElse, createRunnable
 from agentgraph.core.llmmodel import LLMModel
 from agentgraph.core.conversation import Conversation
 from agentgraph.core.prompts import Prompts
+from agentgraph.core.toollist import ToolLists
 from agentgraph.core.var import Var
 from agentgraph.core.mutvar import MutVar
 from agentgraph.core.boolvar import BoolVar

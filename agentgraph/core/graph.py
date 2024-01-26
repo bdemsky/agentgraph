@@ -1,6 +1,8 @@
 import asyncio
+import json
 import traceback
 import threading
+from typing import Callable
 
 from agentgraph.core.boolvar import BoolVar
 from agentgraph.core.conversation import Conversation
@@ -9,6 +11,7 @@ from agentgraph.core.llmmodel import LLMModel
 from agentgraph.core.msgseq import MsgSeq
 from agentgraph.core.mutable import Mutable
 from agentgraph.core.mutvar import MutVar
+from agentgraph.core.toollist import ToolList, ToolsReflect
 from agentgraph.core.var import Var
 import agentgraph.config
 
@@ -108,13 +111,17 @@ class GraphNested(GraphNode):
 class GraphLLMAgent(GraphNode):
     """Run some action.  This is a LLM Agent."""
     
-    def __init__(self, outVar: Var,  conversation, model: LLMModel, msg: MsgSeq, formatFunc, pos: list, kw: dict):
+
+    def __init__(self, outVar: Var, callVar: Var, conversation, model: LLMModel, msg: MsgSeq, formatFunc, tools: ToolList, toolHandlers: list, pos: list, kw: dict):
         super().__init__()
         self.outVar = outVar
+        self.callVar = callVar
         self.conversation = conversation
         self.model = model
         self.msg = msg
         self.formatFunc = formatFunc
+        self.tools = tools
+        self.toolHandlers = toolHandlers
         self.pos = pos if pos != None else []
         self.kw = kw if kw != None else {}
         
@@ -127,10 +134,14 @@ class GraphLLMAgent(GraphNode):
             for var in self.msg.getVars():
                 if not var in l:
                     l.append(var)
+        if self.tools != None:
+            for var in self.tools.getVars():
+                if not var in l:
+                    l.append(var)
         return l
         
     def getWriteVars(self) -> list:
-        return [self.outVar]
+        return [self.outVar, self.callVar]
 
     async def execute(self, varMap: dict) -> dict:
         """Execute LLM Agent.  varMap maps Vars to the values that
@@ -165,25 +176,69 @@ class GraphLLMAgent(GraphNode):
         if agentgraph.config.VERBOSE > 0:
             print("MODEL Request:\n", output)
         # Call the model
+
+        if self.tools != None:
+            try:
+                tools = self.tools.exec(varMap)
+            except Exception as e:
+                print('Error', e)
+                print(traceback.format_exc())
+                return dict()
+        else:
+            tools = None
+
         model = self.model
         if model is None:
             from agentgraph.exec.scheduler import getCurrentScheduler
             model = getCurrentScheduler().getDefaultModel()
         
-        outStr = await model.sendData(output)
-        # Update conversation
+        message = await model.sendData(output, tools)
+        content = message["content"] if "content" in message else None
+        tool_calls = message["tool_calls"] if "tool_calls" in message else None
+
+        outStr = content if content is not None else json.dumps(tool_calls)
+        
+        # Update conversation with tool calls
         if self.conversation is not None:
             if isinstance(self.conversation, agentgraph.core.var.Var):            
                 varMap[self.conversation].push(outStr)
             else:
                 self.conversation.push(outStr)
-                
+
         # Put result in output map
         outMap = dict()
-        outMap[self.outVar] = outStr
+        outMap[self.outVar] = content
+
+        call_results = None
+        if tool_calls is not None and self.toolHandlers is not None:
+            call_results = handleCalls(tool_calls, self.toolHandlers)
+
+            # Update conversation with tool call results
+            if self.conversation is not None:
+                rets, _ = call_results
+                for call, ret in rets:
+                    tool_msg = json.dumps({"role": "tool", "tool_call_id": call["id"], "name": call["function"]["name"], "content": ret})
+                varMap[self.conversation].push(tool_msg)
+
+        if self.callVar is not None:
+            outMap[self.callVar] = call_results if call_results is not None else tool_calls
         
         return outMap
-        
+
+def handleCalls(calls: list, handlers: dict) -> tuple[list]:
+   rets = []
+   errs = []
+   for call in calls:
+       func = call['function']
+       try:
+           pythonFunc = handlers[func['name']]
+           args = json.loads(func['arguments'])
+       except Exception as e:
+           errs.append((call, e))
+       else:
+           rets.append((call, pythonFunc(**args)))
+   return (rets, errs)
+       
 class GraphPythonAgent(GraphNested):
     """Run some action.  This is a Python Agent."""
     
@@ -245,7 +300,7 @@ class GraphPythonAgent(GraphNested):
         for var in self.out:
                 outMap[var] = retval[index]
                 index += 1
-                
+
         return outMap
     
 class GraphNodeNop(GraphNode):
@@ -355,14 +410,17 @@ class VarMap:
         self._varMap[var] = val
         return var
     
-def createLLMAgent(outVar: Var, conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, pos: list = None, kw: dict = None) -> GraphPair:
+def createLLMAgent(outVar: Var, callVar: Var = None, conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, tools: ToolList = None, toolHandlers: dict = None, pos: list = None, kw: dict = None) -> GraphPair:
     """Creates a LLM agent task.
 
     Arguments:
     outVar --- a Variable that will have the value of the output of the LLM.
+    callVar --- a Variable that will have the list of tool calls made by the LLM, if there is any. If calls are made and tool handlers are also provided, it will instead hold a pair of lists (rets, errs). In rets are the well-formed calls paired with the return values of their handlers, and in errs are the malformed calls paired with the exceptions they triggered.
     conversation --- a Variable that will point to the conversation object for this LLM.
     msg --- a MsgSeq object that can be used to generate the input to the LLM. (default None)
     formatFunc --- a Python function that generates the input to the LLM. (default None)
+    tools --- a ToolList object that can be used to generate the tools parameter to the LLM.
+    toolHandlers --- a dictionary that maps the name of each tool to a function that handles the tool call. The return value is appended to the conversation and therefore should be convertible to string.
     inVars --- a dict mapping from names to Vars for the input to the formatFunc Python function. (default None)
     model --- a Model object for performing the LLM call (default None).
     
@@ -373,8 +431,33 @@ def createLLMAgent(outVar: Var, conversation: Var = None, model: LLMModel = None
     assert msg is None or formatFunc is None, "Cannot specify both msg and formatFunc."
         
     checkInVars(pos, kw)
-    llmAgent = GraphLLMAgent(outVar, conversation, model, msg, formatFunc, pos, kw)
+    llmAgent = GraphLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, tools, toolHandlers, pos, kw)
     return GraphPair(llmAgent, llmAgent)
+
+def createLLMAgentWithFuncs(outVar: Var, callVar, agentFuncs: list[Callable], conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, pos: list = None, kw: dict = None) -> GraphPair:
+    """Creates a LLM agent task.
+
+    Arguments:
+    outVar --- a Variable that will have the value of the output of the LLM.
+    callVar --- a Variable that will have results of function calls made by the LLM, if there is any. The result will be a pair of lists (rets, errs). In rets are the well-formed calls paired with the return values of their handlers, and in errs are the malformed calls paired with the exceptions they triggered.
+    agentFuncs--- a list of functions available for the LLM to call. The function and arguments descriptions are extracted from function docstrings with the format
+        FUNC_DESCPITON
+        Arguments:
+        ARG1 --- ARG1_DESCRIPTION
+        ARG2 --- ARG2_DESCRIPTION
+        ...
+    conversation --- a Variable that will point to the conversation object for this LLM.
+    msg --- a MsgSeq object that can be used to generate the input to the LLM. (default None)
+    formatFunc --- a Python function that generates the input to the LLM. (default None)
+    inVars --- a dict mapping from names to Vars for the input to the formatFunc Python function. (default None)
+    model --- a Model object for performing the LLM call (default None).
+    
+    You must either provide a msg object or a formatFunc object (and not both).
+    """
+
+    tools = ToolsReflect(agentFuncs)
+    toolHandlers = {func.__name__: func for func in agentFuncs}
+    return createLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, tools, toolHandlers, pos, kw)
 
 def createPythonAgent(pythonFunc, pos: list = None, kw: dict = None, out: list = None) -> GraphPair:
     """Creates a Python agent task.
