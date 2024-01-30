@@ -48,7 +48,7 @@ agentA = agentgraph.createLLMAgentWithFuncs(ovarA, callVar=callA, agentFuncs=[ge
 # tools = agentgraph.ToolLists(cur_dir + "/tools/")
 # ToolWeather = tools.loadToolList("ToolWeather")
 # handlers = {func.__name__ : func for func in [get_current_weather, get_n_day_weather_forecast]}
-# agentA = agentgraph.createLLMAgent(ovarA, callVar=callA, tools=TooltWeather, toolHandlers=handlers, conversation=convA, msg=sysA > pA) |\
+# agentA = agentgraph.createLLMAgent(ovarA, callVar=callA, tools=ToolWeather, toolHandlers=handlers, conversation=convA, msg=sysA > pA) |\
 #          agentgraph.createLLMAgent(ovarA2, callVar=callA2, tools=ToolWeather, toolHandlers=handlers, conversation=convA, msg=sysA > (pA + pA2) & convA)
 
 scheduler.addTask(agentA.start, varmap)
