@@ -58,4 +58,4 @@ class ToolLists(JinjaManager):
     def loadToolList(self, tools_name: str, vars: set = None) -> ToolsPrompt:
         if vars == None:
             vars = set()
-        return ToolsPrompt(self, tools_name, vars)    
+        return ToolsPrompt(self, tools_name, vars)  

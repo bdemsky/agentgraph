@@ -7,7 +7,7 @@ class JinjaManager:
     def runTemplate(self, name: str, data: dict) -> str:
         if data == None:
             data = dict()
-        
+ 
         file_loader = FileSystemLoader(self.path)
         env = Environment(loader = file_loader)
         template = env.get_template(name)

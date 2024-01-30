@@ -123,13 +123,13 @@ def hashMessage(message_to_send: str) -> str:
 # adapted from https://community.openai.com/t/how-to-calculate-the-tokens-when-using-function-call/266573/11
 # uses len instead of tiktoken's encoding method
 def num_tokens_from_tools(tools):
-   """Return the number of tokens used by a list of tools."""        
+   """Return the number of tokens used by a list of tools."""  
    num_tokens = 0
    for tool in tools:
        function = tool["function"]
        function_tokens = len(function['name'])
        function_tokens += len(function['description'])
-       
+
        if 'parameters' in function:
            parameters = function['parameters']
            if 'properties' in parameters:
@@ -154,5 +154,5 @@ def num_tokens_from_tools(tools):
 
        num_tokens += function_tokens
 
-   num_tokens += 12 
+   num_tokens += 12
    return num_tokens

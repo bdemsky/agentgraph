@@ -238,7 +238,7 @@ def handleCalls(calls: list, handlers: dict) -> tuple[list]:
        else:
            rets.append((call, pythonFunc(**args)))
    return (rets, errs)
-       
+
 class GraphPythonAgent(GraphNested):
     """Run some action.  This is a Python Agent."""
     
@@ -422,8 +422,8 @@ def createLLMAgent(outVar: Var, callVar: Var = None, conversation: Var = None, m
     tools --- a ToolList object that can be used to generate the tools parameter to the LLM.
     toolHandlers --- a dictionary that maps the name of each tool to a function that handles the tool call. The return value is appended to the conversation and therefore should be convertible to string.
     inVars --- a dict mapping from names to Vars for the input to the formatFunc Python function. (default None)
-    model --- a Model object for performing the LLM call (default None).
-    
+    model --- a Model object for performing the LLM call (default None)
+
     You must either provide a msg object or a formatFunc object (and not both).
     """
 
@@ -451,7 +451,7 @@ def createLLMAgentWithFuncs(outVar: Var, callVar, agentFuncs: list[Callable], co
     formatFunc --- a Python function that generates the input to the LLM. (default None)
     inVars --- a dict mapping from names to Vars for the input to the formatFunc Python function. (default None)
     model --- a Model object for performing the LLM call (default None).
-    
+ 
     You must either provide a msg object or a formatFunc object (and not both).
     """
 

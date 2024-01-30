@@ -11,7 +11,7 @@ def funcToTool(func: Callable) -> dict:
     if params:
         required = []
         for param_name in params:
-            properties[param_name] = {"type": typeToJSONSchema(func.__annotations__[param_name])} 
+            properties[param_name] = {"type": typeToJSONSchema(func.__annotations__[param_name])}
             param_obj = params[param_name]
             if param_obj.default is param_obj.empty:
                 required.append(param_name)
@@ -22,11 +22,11 @@ def funcToTool(func: Callable) -> dict:
         descs = re.split(r"\n+\s*Arguments:", doc)
         func_dict["description"] = descs[0]
         # there are parameter descriptions
-        if len(descs) > 1:            
+        if len(descs) > 1:
             matches = re.findall(r"\n+\s*(\w+) --- (.*)", descs[1])
             for param_name, param_desc in matches:
                 assert param_name in properties, "description for unknown parameter"
-                properties[param_name]["description"] = param_desc 
+                properties[param_name]["description"] = param_desc
 
     return {"type": "function", "function" : func_dict}
 
