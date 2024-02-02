@@ -180,12 +180,14 @@ class GraphLLMAgent(GraphNode):
         if self.tools != None:
             try:
                 tools = self.tools.exec(varMap)
+                handlers = self.tools.getHandlers()
             except Exception as e:
                 print('Error', e)
                 print(traceback.format_exc())
                 return dict()
         else:
             tools = None
+            handlers = None
 
         model = self.model
         if model is None:
@@ -210,8 +212,8 @@ class GraphLLMAgent(GraphNode):
         outMap[self.outVar] = content
 
         call_results = None
-        if tool_calls is not None and self.toolHandlers is not None:
-            call_results = handleCalls(tool_calls, self.toolHandlers)
+        if tool_calls is not None and handlers is not None:
+            call_results = handleCalls(tool_calls, handlers)
 
             # Update conversation with tool call results
             if self.conversation is not None:
@@ -420,7 +422,6 @@ def createLLMAgent(outVar: Var, callVar: Var = None, conversation: Var = None, m
     msg --- a MsgSeq object that can be used to generate the input to the LLM. (default None)
     formatFunc --- a Python function that generates the input to the LLM. (default None)
     tools --- a ToolList object that can be used to generate the tools parameter to the LLM.
-    toolHandlers --- a dictionary that maps the name of each tool to a function that handles the tool call. The return value is appended to the conversation and therefore should be convertible to string.
     inVars --- a dict mapping from names to Vars for the input to the formatFunc Python function. (default None)
     model --- a Model object for performing the LLM call (default None)
 
@@ -431,33 +432,8 @@ def createLLMAgent(outVar: Var, callVar: Var = None, conversation: Var = None, m
     assert msg is None or formatFunc is None, "Cannot specify both msg and formatFunc."
         
     checkInVars(pos, kw)
-    llmAgent = GraphLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, tools, toolHandlers, pos, kw)
+    llmAgent = GraphLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, tools, pos, kw)
     return GraphPair(llmAgent, llmAgent)
-
-def createLLMAgentWithFuncs(outVar: Var, callVar, agentFuncs: list[Callable], conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, pos: list = None, kw: dict = None) -> GraphPair:
-    """Creates a LLM agent task.
-
-    Arguments:
-    outVar --- a Variable that will have the value of the output of the LLM.
-    callVar --- a Variable that will have results of function calls made by the LLM, if there is any. The result will be a pair of lists (rets, errs). In rets are the well-formed calls paired with the return values of their handlers, and in errs are the malformed calls paired with the exceptions they triggered.
-    agentFuncs--- a list of functions available for the LLM to call. The function and arguments descriptions are extracted from function docstrings with the format
-        FUNC_DESCPITON
-        Arguments:
-        ARG1 --- ARG1_DESCRIPTION
-        ARG2 --- ARG2_DESCRIPTION
-        ...
-    conversation --- a Variable that will point to the conversation object for this LLM.
-    msg --- a MsgSeq object that can be used to generate the input to the LLM. (default None)
-    formatFunc --- a Python function that generates the input to the LLM. (default None)
-    inVars --- a dict mapping from names to Vars for the input to the formatFunc Python function. (default None)
-    model --- a Model object for performing the LLM call (default None).
- 
-    You must either provide a msg object or a formatFunc object (and not both).
-    """
-
-    tools = ToolsReflect(agentFuncs)
-    toolHandlers = {func.__name__: func for func in agentFuncs}
-    return createLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, tools, toolHandlers, pos, kw)
 
 def createPythonAgent(pythonFunc, pos: list = None, kw: dict = None, out: list = None) -> GraphPair:
     """Creates a Python agent task.
