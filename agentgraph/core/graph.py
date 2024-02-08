@@ -11,6 +11,7 @@ from agentgraph.core.llmmodel import LLMModel
 from agentgraph.core.msgseq import MsgSeq
 from agentgraph.core.mutable import Mutable
 from agentgraph.core.mutvar import MutVar
+from agentgraph.core.reflect import ArgMapFunc
 from agentgraph.core.toollist import ToolList, ToolsReflect
 from agentgraph.core.var import Var
 import agentgraph.config
@@ -213,7 +214,7 @@ class GraphLLMAgent(GraphNode):
 
         call_results = None
         if tool_calls is not None and handlers is not None:
-            call_results = handleCalls(tool_calls, handlers)
+            call_results = handleCalls(tool_calls, handlers, varMap)
 
             # Update conversation with tool call results
             if self.conversation is not None:
@@ -227,18 +228,21 @@ class GraphLLMAgent(GraphNode):
         
         return outMap
 
-def handleCalls(calls: list, handlers: dict) -> tuple[list]:
+def handleCalls(calls: list, handlers: dict, varMap: dict) -> tuple[list]:
    rets = []
    errs = []
    for call in calls:
        func = call['function']
        try:
-           pythonFunc = handlers[func['name']]
+           handler = handlers[func['name']]
            args = json.loads(func['arguments'])
        except Exception as e:
            errs.append((call, e))
        else:
-           rets.append((call, pythonFunc(**args)))
+           if type(handler) is ArgMapFunc: 
+                for arg, var in handler.argMap.items():
+                    args[arg] = varMap[var]
+           rets.append((call, handler(**args)))
    return (rets, errs)
 
 class GraphPythonAgent(GraphNested):
@@ -417,7 +421,7 @@ def createLLMAgent(outVar: Var, callVar: Var = None, conversation: Var = None, m
 
     Arguments:
     outVar --- a Variable that will have the value of the output of the LLM.
-    callVar --- a Variable that will have the list of tool calls made by the LLM, if there is any. If calls are made and tool handlers are also provided, it will instead hold a pair of lists (rets, errs). In rets are the well-formed calls paired with the return values of their handlers, and in errs are the malformed calls paired with the exceptions they triggered.
+    callVar --- a Variable that will have the list of tool calls made by the LLM, if there is any. If calls are made and handlers are also provided in tools, it will instead hold a pair of lists (rets, errs). In rets are the well-formed calls paired with the return values of their handlers, and in errs are the malformed calls paired with the exceptions they triggered.
     conversation --- a Variable that will point to the conversation object for this LLM.
     msg --- a MsgSeq object that can be used to generate the input to the LLM. (default None)
     formatFunc --- a Python function that generates the input to the LLM. (default None)
