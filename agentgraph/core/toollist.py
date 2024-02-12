@@ -31,7 +31,7 @@ class ToolsReflect(ToolList):
         self.vars = set()
         for func in funcs: 
             if type(func) is ArgMapFunc:
-                self.vars |= func.argMap.values()
+                self.vars.update(list(func.argMap.values()))
         self.tools: list[dict] =[funcToTool(func) for func in funcs]
         self.handlers = {func.__name__: func for func in funcs} if createHandlers else None
 
@@ -51,7 +51,7 @@ class ToolsPrompt(ToolList):
         self.name = name
         for func in handlers: 
             if type(func) is ArgMapFunc:
-                self.vars |= func.argMap.values()
+                self.vars.update(list(func.argMap.values()))
         self.handlers = handlers
 
     def exec(self, varsMap: dict) -> list[dict]:
