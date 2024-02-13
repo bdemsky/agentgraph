@@ -17,9 +17,9 @@ convA = varmap.mapToConversation("AgentA")
 convB = varmap.mapToConversation("AgentB")
 
 for i in range(2):
-    scheduler.runLLMAgent(ovarA, conversation = convA, msg = sysA > pA + convB & convA, vmap = varmap)
+    scheduler.runLLMAgent(ovarA, conversation = convA, msg = convA > (convA & pA | sysA ** pA), vmap = varmap)
     varmap = None
-    scheduler.runLLMAgent(ovarB, conversation = convB, msg = sysB > convA & convB)
+    scheduler.runLLMAgent(ovarB, conversation = convB, msg = convB > (convB & ovarA | sysB ** ovarA))
     
 print("Tasks Enqueued")
 print(ovarA.getValue())

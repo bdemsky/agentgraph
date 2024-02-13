@@ -150,7 +150,7 @@ class GraphLLMAgent(GraphNode):
 
         if self.msg != None:
             try:
-                output = self.msg.exec(varMap)
+                inConv = self.msg.exec(varMap)
             except Exception as e:
                 print('Error', e)
                 print(traceback.format_exc())
@@ -173,9 +173,9 @@ class GraphLLMAgent(GraphNode):
                     inMap[name] = o
 
             # Next, actually call the formatFunc to generate the prompt
-            output = await self.formatFunc(*posList, **inMap)
+            inConv = await self.formatFunc(*posList, **inMap)
         if agentgraph.config.VERBOSE > 0:
-            print("MODEL Request:\n", output)
+            print("MODEL Request:\n", inConv)
         # Call the model
 
         if self.tools != None:
@@ -195,7 +195,7 @@ class GraphLLMAgent(GraphNode):
             from agentgraph.exec.scheduler import getCurrentScheduler
             model = getCurrentScheduler().getDefaultModel()
         
-        message = await model.sendData(output, tools)
+        message = await model.sendData(inConv, tools)
         content = message["content"] if "content" in message else None
         tool_calls = message["tool_calls"] if "tool_calls" in message else None
 
@@ -203,10 +203,15 @@ class GraphLLMAgent(GraphNode):
         
         # Update conversation with tool calls
         if self.conversation is not None:
-            if isinstance(self.conversation, agentgraph.core.var.Var):            
-                varMap[self.conversation].push(outStr)
+            # Get conversation object
+            if isinstance(self.conversation, agentgraph.core.var.Var):
+                actConv = varMap[self.conversation]
             else:
-                self.conversation.push(outStr)
+                actConv = self.conversation
+
+            #Make the output conversation match the full discussion
+            actConv.loadConv(inConv)
+            actConv.push(outStr)
 
         # Put result in output map
         outMap = dict()
@@ -436,7 +441,7 @@ def createLLMAgent(outVar: Var, callVar: Var = None, conversation: Var = None, m
     assert msg is None or formatFunc is None, "Cannot specify both msg and formatFunc."
         
     checkInVars(pos, kw)
-    llmAgent = GraphLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, tools, pos, kw)
+    llmAgent = GraphLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, tools, toolHandlers, pos, kw)
     return GraphPair(llmAgent, llmAgent)
 
 def createPythonAgent(pythonFunc, pos: list = None, kw: dict = None, out: list = None) -> GraphPair:

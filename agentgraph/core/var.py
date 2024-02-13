@@ -18,7 +18,11 @@ class Var(MsgSeq):
         return { self }
 
     def exec(self, varsMap: dict):
-        return varsMap[self]
+        lookup = varsMap[self]
+        if isinstance(lookup, str):
+            return lookup
+        else:
+            return lookup.exec(varsMap)
 
     def getValue(self):
         """Method that will return the value the variable is assigned

@@ -1,16 +1,25 @@
-
-
 class MsgSeq:
     def __init__(self):
         pass
 
-    def __add__(a, b):
+    def __or__(a, b):
+        """a | b first processes a and if it is empty, then processes b"""
+        return a.msgchoice(b)
+
+    def msgchoice(self, b):
+        return MsgChoice(self, b)
+
+    def __gt__(a, b):
+        return a.choice(b)
+    
+    def choice(self, b):
+        return MsgChooser(self, b)    
+    
+    def __and__(a, b):
+        """a & b adds message b to the conversation,"""
         return a.concat(b)
 
-    def concat(self, o: 'MsgSeq'):
-        if self.isExchange() or o.isExchange():
-            raise RuntimeError(f"Can only concat/+ two message sequences.\n")
-
+    def concat(self, o):
         return MsgConcat(self, o)
 
     def __invert__(o):
@@ -24,29 +33,18 @@ class MsgSeq:
             raise RuntimeError(f"Can only summarize a message sequences.\n")
         return MsgSummary(self)
 
-    def __and__(a, b):
-        """a & b interleave the messages in message sequence a and b
-        such that a's messages are user messages and b's are assistant
-        messages."""
-        
-        return a.interleave(b)
-    
-    def interleave(self, o: 'MsgSeq'):
-        if self.isExchange() or o.isExchange():
-            raise RuntimeError(f"Can only interleave message sequences.\n")
-        return MsgInterleave(self, o)
-
-    def __gt__(a, b):
-        """a > b means that a is a system message and b is the rest of
+    def __pow__(self, b):
+        """a ** b means that a is a system message and b is the rest of
         the message sequency."""
         
-        return a.system(b)
+        return self.system(b)
     
     def system(self, o: 'MsgSeq'):
-        if not o.isExchange() and not o.isSingleMsg():
-            raise RuntimeError(f"The second part of a system operator must be a message sequence.\n")
         return MsgSystem(self, o)
 
+    def getitem(self, slicerange):
+        return MsgSlice(self, slicerange)
+    
     def isExchange(self) -> bool:
         return False
 
@@ -58,21 +56,85 @@ class MsgSeq:
 
     def exec(self, varsMap: dict):
         pass
+
+class MsgSlice(MsgSeq):
+    def __init__(self, left: MsgSeq, slicerange: slice):
+        self._left = left
+        self._range = slicerange
+
+    def getVars(self) -> set:
+        return self._left.getVars()
+
+    def exec(self, varsMap:dict):
+        l = self._left.exec(varsMap)
+        if not isinstance(l, list):
+            raise RuntimeException("Slicing applied to non list")
+        return l[self._range]
+    
+def doExtendList(vleft: list, vright:str):
+    if not isinstance(vleft, list):
+        raise RuntimeException("Left side of prompt is not list")
+    if vleft[-1]["role"] == "user":
+        newRole = "assistant"
+    else:
+        newRole = "user"
+    vleft.append({"role": newRole, "content": vright})    
+
+class MsgChooser(MsgSeq):
+    def __init__(self, left: MsgSeq, right: MsgSeq):
+        super().__init__()
+        self._left = left
+        self._right = right
+
+    def getVars(self) -> set:
+        return self._left.getVars().union(self._right.getVars())
+
+    def exec(self, varsMap: dict):
+        vleft = self._left.exec(varsMap)
+        if not isinstance(self._right, MsgChoice):
+            raise RuntimeException("RHS of a > is not a choice")
+
+        if isinstance(vleft, list):
+            if len(vleft) == 0:
+                return self._right._right.exec(varsMap)
+            else:
+                return self._right._left.exec(varsMap)
+        else:
+            raise RuntimeException("LHS of a > is not a list")
+    
+    
+class MsgChoice(MsgSeq):
+    def __init__(self, left: MsgSeq, right: MsgSeq):
+        super().__init__()
+        self._left = left
+        self._right = right
+
+    def getVars(self) -> set:
+        return self._left.getVars().union(self._right.getVars())
+
     
 class MsgConcat(MsgSeq):
     def __init__(self, left: MsgSeq, right: MsgSeq):
         super().__init__()
-        self.left = left
-        self.right = right
+        self._left = left
+        self._right = right
 
     def getVars(self) -> set:
-        return self.left.getVars().union(self.right.getVars())
+        return self._left.getVars().union(self._right.getVars())
 
     def exec(self, varsMap: dict):
-        vleft = self.left.exec(varsMap)
-        vright = self.right.exec(varsMap)
-        return vleft.append(vright)
-    
+        vleft = self._left.exec(varsMap)
+        vright = self._right.exec(varsMap)
+        if isinstance(vright, str):
+            doExtendList(vleft, vright)
+            return vleft
+        elif isinstance(vright, list):
+            for msg in right:
+                doExtendList(vleft, msg["content"])
+            return vleft
+        else:
+            raise RuntimeException("RHS is neither string or list")
+        
 class MsgSummary(MsgSeq):
     def __init__(self, msg: MsgSeq):
         super().__init__()
@@ -83,49 +145,31 @@ class MsgSummary(MsgSeq):
 
     def exec(self, varsMap: dict):
         val = self.msg.exec(varsMap)
-        return val.summary()
+        return val.summaryRecv()
     
-class MsgInterleave(MsgSeq):
-    def __init__(self, user: MsgSeq, assistant: MsgSeq):
-        super().__init__()
-        self.user = user
-        self.assistant = assistant
-
-    def getVars(self) -> set:
-        return self.user.getVars().union(self.assistant.getVars())
-        
-    def isExchange(self) -> bool:
-        return True
-
-    def exec(self, varsMap: dict):
-        userseq = self.user.exec(varsMap)
-        assistantseq = self.assistant.exec(varsMap)
-        seq = []
-        for i in range(userseq.size()):
-            message = userseq.get(i)
-            seq.append({"role": "user", "content": message})
-            if i < assistantseq.size():
-                message = assistantseq.get(i)
-                seq.append({"role": "assistant", "content": message})
-        return seq
-                
 class MsgSystem(MsgSeq):
     def __init__(self, systemMsg: MsgSeq, conv: MsgSeq):
         super().__init__()
-        self.systemMsg = systemMsg
-        self.conv = conv
+        self._systemMsg = systemMsg
+        self._conv = conv
 
     def getVars(self) -> set:
-        return self.systemMsg.getVars().union(self.conv.getVars())
+        return self._systemMsg.getVars().union(self._conv.getVars())
         
     def isExchange(self) -> bool:
         return True
 
     def exec(self, varsMap: dict):
-        conv = self.conv.exec(varsMap)
-        systemmsg = self.systemMsg.exec(varsMap)
-        sys = [{"role": "system", "content": systemmsg.get(0)}]
-        if self.conv.isSingleMsg():
-            return sys + [{"role": "system", "content": conv.get(0)}]
+        vright = self._conv.exec(varsMap)
+        systemmsg = self._systemMsg.exec(varsMap)
+        vleft = [{"role": "system", "content": systemmsg}]
+
+        if isinstance(vright, str):
+            doExtendList(vleft, vright)
+            return vleft
+        elif isinstance(vright, list):
+            for msg in right:
+                doExtendList(vleft, msg["content"])
+            return vleft
         else:
-            return sys + conv
+            raise RuntimeException("RHS is neither string or list")

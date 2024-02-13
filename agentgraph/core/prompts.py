@@ -12,20 +12,19 @@ class Prompt(MsgSeq):
     def isSingleMsg(self) -> bool:
         return True
 
-    def exec(self, varsMap: dict):
+    def exec(self, varsMap: dict) -> str:
         """Compute value of prompt at runtime"""
         data = dict()
         for var in varsMap:
             value = varsMap[var]
             data[var.getName()] = value
         val = self.prompts.runTemplate(self.name, data)
-        return Conversation(val)
+        return val
 
     def getVars(self) -> set:
         return self.vars
 
 class Prompts(JinjaManager):
-
     def loadPrompt(self, prompt_name: str, vars: set = None) -> Prompt:
         if vars == None:
             vars = set()
