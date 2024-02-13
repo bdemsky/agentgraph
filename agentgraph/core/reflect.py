@@ -19,7 +19,7 @@ def withArgMap(argMap = {}):
         return ArgMapFunc(func, argMap)
     return inner
 
-def funcToTool(func: Callable) -> dict:
+def funcToToolSig(func: Callable) -> dict:
     func_dict = {"name": func.__name__}
     sig = inspect.signature(func)
     params = sig.parameters
@@ -43,13 +43,12 @@ def funcToTool(func: Callable) -> dict:
         for param_name in params:
             if param_name in ignore:
                 continue
-            properties[param_name] = {"type": typeToJSONSchema(func.__annotations__[param_name])}
             if param_name in desc_dict:
-                properties[param_name]["description"] = desc_dict[param_name]
+                properties[param_name] = {"type": typeToJSONSchema(func.__annotations__[param_name]), "description": desc_dict[param_name]}
 
-            param_obj = params[param_name]
-            if param_obj.default is param_obj.empty:
-                required.append(param_name)
+                param_obj = params[param_name]
+                if param_obj.default is param_obj.empty:
+                    required.append(param_name)
 
         func_dict["parameters"] =  {"type": "object", "properties": properties, "required": required}
 

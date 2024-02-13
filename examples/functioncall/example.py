@@ -41,15 +41,15 @@ pA, pA2 = prompts.loadPrompt("PromptA"), prompts.loadPrompt("PromptA2")
 sysA = prompts.loadPrompt("SystemA")
 
 # construct tools from python functions
-# ToolWeather = agentgraph.ToolsReflect([get_current_weather, get_n_day_weather_forecast])
-# agentA = agentgraph.createLLMAgent(ovarA, callVar=callA, conversation=convA, msg=sysA > pA, tools = ToolWeather) |\
-#          agentgraph.createLLMAgent(ovarA2, callVar=callA2, conversation=convA, msg=sysA > (pA + pA2) & convA, tools = ToolWeather)
+# ToolsWeather = map(agentgraph.ToolReflect, [get_current_weather, get_n_day_weather_forecast])
+# agentA = agentgraph.createLLMAgent(ovarA, callVar=callA, conversation=convA, msg=sysA > pA, tools = ToolsWeather) |\
+#          agentgraph.createLLMAgent(ovarA2, callVar=callA2, conversation=convA, msg=sysA > (pA + pA2) & convA, tools = ToolsWeather)
 
 # alternatively, tools can be constructed from jinja templates
-tools = agentgraph.ToolLists(cur_dir + "/tools/")
-ToolWeather = tools.loadToolList("ToolWeather", handlers = [get_current_weather, get_n_day_weather_forecast])
-agentA = agentgraph.createLLMAgent(ovarA, callVar=callA, conversation=convA, msg=sysA > pA, tools=ToolWeather) |\
-         agentgraph.createLLMAgent(ovarA2, callVar=callA2, conversation=convA, msg=sysA > (pA + pA2) & convA, tools = ToolWeather)
+toolLoader = agentgraph.ToolLoader(cur_dir + "/tools/")
+ToolsWeather = [toolLoader.loadTool("CurWeather", handler = get_current_weather), toolLoader.loadTool("NDayWeather", handler=get_n_day_weather_forecast)]
+agentA = agentgraph.createLLMAgent(ovarA, callVar=callA, conversation=convA, msg=sysA > pA, tools=ToolsWeather) |\
+         agentgraph.createLLMAgent(ovarA2, callVar=callA2, conversation=convA, msg=sysA > (pA + pA2) & convA, tools = ToolsWeather)
 
 scheduler.addTask(agentA.start, varmap)
 print("LLM: ", ovarA.getValue(), "\n", callA.getValue())

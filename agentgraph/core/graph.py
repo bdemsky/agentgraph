@@ -12,7 +12,7 @@ from agentgraph.core.msgseq import MsgSeq
 from agentgraph.core.mutable import Mutable
 from agentgraph.core.mutvar import MutVar
 from agentgraph.core.reflect import ArgMapFunc
-from agentgraph.core.toollist import ToolList, ToolsReflect
+from agentgraph.core.tools import Tool
 from agentgraph.core.var import Var
 import agentgraph.config
 
@@ -112,8 +112,7 @@ class GraphNested(GraphNode):
 class GraphLLMAgent(GraphNode):
     """Run some action.  This is a LLM Agent."""
     
-
-    def __init__(self, outVar: Var, callVar: Var, conversation, model: LLMModel, msg: MsgSeq, formatFunc, tools: ToolList, toolHandlers: list, pos: list, kw: dict):
+    def __init__(self, outVar: Var, callVar: Var, conversation: Var, model: LLMModel, msg: MsgSeq, formatFunc, tools: list[Tool], pos: list, kw: dict):
         super().__init__()
         self.outVar = outVar
         self.callVar = callVar
@@ -136,9 +135,10 @@ class GraphLLMAgent(GraphNode):
                 if not var in l:
                     l.append(var)
         if self.tools != None:
-            for var in self.tools.getVars():
-                if not var in l:
-                    l.append(var)
+            for tool in self.tools:
+                for var in tool.getVars():
+                    if not var in l:
+                        l.append(var)
         return l
         
     def getWriteVars(self) -> list:
@@ -180,14 +180,18 @@ class GraphLLMAgent(GraphNode):
 
         if self.tools != None:
             try:
-                tools = self.tools.exec(varMap)
-                handlers = self.tools.getHandlers()
+                toolsParam = []
+                handlers = {}
+                for tool in self.tools:
+                    toolSig = tool.exec(varMap)
+                    toolsParam.append(toolSig)
+                    handlers[toolSig["function"]["name"]] = tool.getHandler() 
             except Exception as e:
                 print('Error', e)
                 print(traceback.format_exc())
                 return dict()
         else:
-            tools = None
+            toolsParam = None
             handlers = None
 
         model = self.model
@@ -195,9 +199,9 @@ class GraphLLMAgent(GraphNode):
             from agentgraph.exec.scheduler import getCurrentScheduler
             model = getCurrentScheduler().getDefaultModel()
         
-        message = await model.sendData(inConv, tools)
+        message = await model.sendData(output, toolsParam)
         content = message["content"] if "content" in message else None
-        tool_calls = message["tool_calls"] if "tool_calls" in message else None
+        toolCalls = message["tool_calls"] if "tool_calls" in message else None
 
         outStr = content if content is not None else json.dumps(tool_calls)
         
@@ -213,42 +217,46 @@ class GraphLLMAgent(GraphNode):
             actConv.loadConv(inConv)
             actConv.push(outStr)
 
+=======
+            outStr = content if content is not None else json.dumps(toolCalls)
+            varMap[self.conversation].push(outStr)
+        
+>>>>>>> 96195ca (refactor toollist into list of tool objects)
         # Put result in output map
         outMap = dict()
         outMap[self.outVar] = content
 
-        call_results = None
-        if tool_calls is not None and handlers is not None:
-            call_results = handleCalls(tool_calls, handlers, varMap)
+        callResults = None
+        if toolCalls is not None and handlers is not None:
+            callResults = handleCalls(toolCalls, handlers, varMap)
 
             # Update conversation with tool call results
             if self.conversation is not None:
-                rets, _ = call_results
-                for call, ret in rets:
-                    tool_msg = json.dumps({"role": "tool", "tool_call_id": call["id"], "name": call["function"]["name"], "content": ret})
-                varMap[self.conversation].push(tool_msg)
+                for call in callResults:
+                    if "return" in call:
+                        toolMsg = json.dumps({"role": "tool", "tool_call_id": call["id"], "name": call["function"]["name"], "content": call["return"]})
+                        varMap[self.conversation].push(toolMsg)
 
         if self.callVar is not None:
-            outMap[self.callVar] = call_results if call_results is not None else tool_calls
+            outMap[self.callVar] = callResults if callResults is not None else toolCalls
         
         return outMap
 
-def handleCalls(calls: list, handlers: dict, varMap: dict) -> tuple[list]:
-   rets = []
-   errs = []
+def handleCalls(calls: list, handlers: dict, varMap: dict) -> list:
    for call in calls:
        func = call['function']
        try:
            handler = handlers[func['name']]
            args = json.loads(func['arguments'])
        except Exception as e:
-           errs.append((call, e))
+           call["exception"] = e
        else:
            if type(handler) is ArgMapFunc: 
-                for arg, var in handler.argMap.items():
+               for arg, var in handler.argMap.items():
                     args[arg] = varMap[var]
-           rets.append((call, handler(**args)))
-   return (rets, errs)
+           if handler is not None:
+               call["return"] = handler(**args)
+   return calls
 
 class GraphPythonAgent(GraphNested):
     """Run some action.  This is a Python Agent."""
@@ -426,16 +434,16 @@ class VarMap:
         self._varMap[var] = val
         return var
     
-def createLLMAgent(outVar: Var, callVar: Var = None, conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, tools: ToolList = None, toolHandlers: dict = None, pos: list = None, kw: dict = None) -> GraphPair:
+def createLLMAgent(outVar: Var, callVar: Var = None, conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, tools: list[Tool] = None, toolHandlers: dict = None, pos: list = None, kw: dict = None) -> GraphPair:
     """Creates a LLM agent task.
 
     Arguments:
     outVar --- a Variable that will have the value of the output of the LLM.
-    callVar --- a Variable that will have the list of tool calls made by the LLM, if there is any. If calls are made and handlers are also provided in tools, it will instead hold a pair of lists (rets, errs). In rets are the well-formed calls paired with the return values of their handlers, and in errs are the malformed calls paired with the exceptions they triggered.
+    callVar --- a Variable that will have the list of calls made by the LLM, if there is any. If a call has arguments that cannot be parsed as json, or if the called tool can't be found in the tools passed in, an exception is stored in the call with the key "exception". Otherwise if the called tool has a handler, the handler is called and the result is stored in the call with the key "return".  
     conversation --- a Variable that will point to the conversation object for this LLM.
     msg --- a MsgSeq object that can be used to generate the input to the LLM. (default None)
     formatFunc --- a Python function that generates the input to the LLM. (default None)
-    tools --- a ToolList object that can be used to generate the tools parameter to the LLM.
+    tools --- a list of Tool objects that can be used to generate the tools parameter to the LLM.
     inVars --- a dict mapping from names to Vars for the input to the formatFunc Python function. (default None)
     model --- a Model object for performing the LLM call (default None)
 

@@ -2,7 +2,7 @@ from agentgraph.core.graph import VarMap, createLLMAgent, createPythonAgent, cre
 from agentgraph.core.llmmodel import LLMModel
 from agentgraph.core.conversation import Conversation
 from agentgraph.core.prompts import Prompts
-from agentgraph.core.toollist import ToolLists, ToolsReflect
+from agentgraph.core.tools import ToolLoader, ToolReflect
 from agentgraph.core.reflect import withArgMap
 from agentgraph.core.var import Var
 from agentgraph.core.mutvar import MutVar
