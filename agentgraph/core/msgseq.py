@@ -68,12 +68,12 @@ class MsgSlice(MsgSeq):
     def exec(self, varsMap:dict):
         l = self._left.exec(varsMap)
         if not isinstance(l, list):
-            raise RuntimeException("Slicing applied to non list")
+            raise RuntimeError("Slicing applied to non list")
         return l[self._range]
     
 def doExtendList(vleft: list, vright:str):
     if not isinstance(vleft, list):
-        raise RuntimeException("Left side of prompt is not list")
+        raise RuntimeError("Left side of prompt is not list")
     if vleft[-1]["role"] == "user":
         newRole = "assistant"
     else:
@@ -92,7 +92,7 @@ class MsgChooser(MsgSeq):
     def exec(self, varsMap: dict):
         vleft = self._left.exec(varsMap)
         if not isinstance(self._right, MsgChoice):
-            raise RuntimeException("RHS of a > is not a choice")
+            raise RuntimeError("RHS of a > is not a choice")
 
         if isinstance(vleft, list):
             if len(vleft) == 0:
@@ -100,7 +100,7 @@ class MsgChooser(MsgSeq):
             else:
                 return self._right._left.exec(varsMap)
         else:
-            raise RuntimeException("LHS of a > is not a list")
+            raise RuntimeError("LHS of a > is not a list")
     
     
 class MsgChoice(MsgSeq):
@@ -133,7 +133,7 @@ class MsgConcat(MsgSeq):
                 doExtendList(vleft, msg["content"])
             return vleft
         else:
-            raise RuntimeException("RHS is neither string or list")
+            raise RuntimeError("RHS is neither string or list")
         
 class MsgSummary(MsgSeq):
     def __init__(self, msg: MsgSeq):
@@ -172,4 +172,4 @@ class MsgSystem(MsgSeq):
                 doExtendList(vleft, msg["content"])
             return vleft
         else:
-            raise RuntimeException("RHS is neither string or list")
+            raise RuntimeError("RHS is neither string or list")

@@ -424,6 +424,10 @@ class Scheduler:
                         scheduleNode.addRef(var)
                     continue
                 
+                if var not in self.varMap:
+                    varName = var.getName()
+                    raise RuntimeError(f"Use before define with {varName}")
+                    
                 lookup = self.varMap[var]
                 if isinstance(lookup, ScheduleNode):
                     # Variable mapped to schedule node, which means we
@@ -634,7 +638,7 @@ class Scheduler:
         is only shutdown once."""
 
         if (self.parent is not None):
-            raise RuntimeException("Calling shutdown on non-parent Scheduler.")
+            raise RuntimeError("Calling shutdown on non-parent Scheduler.")
         else:
             # Make sure there are no tasks in flight
             while self.windowSize != 0:

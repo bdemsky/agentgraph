@@ -10,13 +10,14 @@ prompts = agentgraph.Prompts("./examples/chat/prompts/")
 sysA = prompts.loadPrompt("SystemA")
 sysB = prompts.loadPrompt("SystemB")
 pA = prompts.loadPrompt("PromptA")
-ovarA = agentgraph.Var("OutA")
-ovarB = agentgraph.Var("OutB")
 convA = agentgraph.Conversation()
 convB = agentgraph.Conversation()
+varmap = agentgraph.VarMap()
+ovarA = varmap.mapToNone("OutA")
+ovarB = varmap.mapToNone("OutB")
 
 for i in range(2):
-    scheduler.runLLMAgent(ovarA, conversation = convA, msg = convA > (convA & pA | sysA ** pA))
+    scheduler.runLLMAgent(ovarA, conversation = convA, msg = convA > (convA & ovarB | sysA ** pA), vmap = varmap)
     varmap = None
     scheduler.runLLMAgent(ovarB, conversation = convB, msg = convB > (convB & ovarA | sysB ** ovarA))
     

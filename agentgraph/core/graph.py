@@ -411,6 +411,11 @@ class VarMap:
         self._varMap[var] = val
         return var
 
+    def mapToNone(self, name: str) -> Var:
+        var = self._getVariable(name)
+        self._varMap[var] = None
+        return var
+
     def mapToInt(self, name: str, val: int) -> Var:
         var = self._getVariable(name)
         self._varMap[var] = val
