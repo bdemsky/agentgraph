@@ -3,13 +3,22 @@ import hashlib
 import agentgraph.config
 import json
 from pathlib import Path
-from openai import AsyncAzureOpenAI, APITimeoutError
+from openai import AsyncOpenAI, AsyncAzureOpenAI, APITimeoutError
 
 class LLMModel:
-    def __init__(self, endpoint, apikey, smallModel, largeModel, threshold, api_version="2023-05-15"):
-        self.client = AsyncAzureOpenAI(azure_endpoint=endpoint,
-                                       api_version=api_version,
-                                      api_key=apikey)
+    def __init__(self, endpoint, apikey, smallModel, largeModel, threshold, api_version="2023-05-15", useOpenAI: bool = False):
+        if useOpenAI:
+            if endpoint is not None:
+                self.client = AsyncOpenAI(base_url=endpoint,
+                                          api_version=api_version,
+                                          api_key=apikey)
+            else:
+                self.client = AsyncOpenAI(api_version=api_version,
+                                          api_key=apikey)
+        else:
+            self.client = AsyncAzureOpenAI(azure_endpoint=endpoint,
+                                           api_version=api_version,
+                                           api_key=apikey)
         self.timeout = 60
         self.smallModel = smallModel
         self.switchThreshold = threshold
