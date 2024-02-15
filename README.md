@@ -73,11 +73,11 @@ model to use.
 scheduler.runPythonAgent(function, pos, kw, out, vmap)
 ```
 
-function - function to run for task
-pos - positional arguments to task
-kw - keyword based arguments to task
-out - AgentGraph variable objects to store output of task
-vmap - VarMap object to provide a set of variable object assignment to be performend before the task is started.
+- function - function to run for task
+- pos - positional arguments to task
+- kw - keyword based arguments to task
+- out - AgentGraph variable objects to store output of task
+- vmap - VarMap object to provide a set of variable object assignment to be performend before the task is started.
 
 ### Running LLM Tasks
 
@@ -85,16 +85,16 @@ vmap - VarMap object to provide a set of variable object assignment to be perfor
 scheduler.runLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, tools, pos, kw, vmap)
 ```
 
-outVar - variable to hold the output string from the LLM model
-callVar - [Simon]
-conversation - conversation object that can be used to store the total conversation performed
-model - model to use (overriding default model)
-msg - MsgSeq AST to be used to construct the query
-formatFunc - python function that can alternatively be used to construct a query
-tools - [Simon]
-pos - positional arguments for formatFunc
-kw - keyword arguments for formatFunc
-vmap - VarMap object to provide a set of variable object assignment to be performend before the task is started.
+- outVar - variable to hold the output string from the LLM model
+- callVar - [Simon]
+- conversation - conversation object that can be used to store the total conversation performed
+- model - model to use (overriding default model)
+- msg - MsgSeq AST to be used to construct the query
+- formatFunc - python function that can alternatively be used to construct a query
+- tools - [Simon]
+- pos - positional arguments for formatFunc
+- kw - keyword arguments for formatFunc
+- vmap - VarMap object to provide a set of variable object assignment to be performend before the task is started.
 
 ### Auxilary Data Structures
 
