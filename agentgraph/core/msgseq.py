@@ -129,7 +129,7 @@ class MsgConcat(MsgSeq):
             doExtendList(vleft, vright)
             return vleft
         elif isinstance(vright, list):
-            for msg in right:
+            for msg in vright:
                 doExtendList(vleft, msg["content"])
             return vleft
         else:
