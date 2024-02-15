@@ -44,6 +44,20 @@ estimated need for a context window to reduce costs.
   version of the model.  Set to false if you want to use an Azure
   served model.
 
+### Prompts
+
+```
+prompts = agentgraph.Prompts(directory)
+```
+
+Creates a prompt object using the specified directory.
+
+```
+prompts.loadPrompt(filename)
+```
+
+Loads a prompt from the specified filename.
+
 ### Top-Level Scheduler Creation
 
 ```
@@ -82,3 +96,24 @@ pos - positional arguments for formatFunc
 kw - keyword arguments for formatFunc
 vmap - VarMap object to provide a set of variable object assignment to be performend before the task is started.
 
+### Auxilary Data Structures
+
+```
+conversation = agentgraph.Conversation()
+```
+
+Create a Conversation mutable object.
+
+
+```
+varmap = agentgraph.VarMap()
+```
+
+Creates a variable map.
+
+
+```
+var.getValue()
+```
+
+Gets the value of a variable.
