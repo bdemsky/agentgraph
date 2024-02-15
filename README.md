@@ -58,6 +58,44 @@ prompts.loadPrompt(filename)
 
 Loads a prompt from the specified filename.
 
+### Tools
+
+There are two ways of creating tools.
+
+(1)
+
+```
+toolLoader = agentgraph.ToolLoader(directory)
+```
+
+Creates a toolLoader from a specified directory.
+
+
+```
+toolLoader.loadTool(filename, handler=function)
+```
+
+loads the tool from the specified filename, and gives it a handler to be invoked when called by LLM (optional).
+
+Tools loaded this way need to adhere to the format specified by [the openai API](https://platform.openai.com/docs/api-reference/chat/create)
+
+
+(2)
+
+```
+agentgraph.ToolReflect(function)
+```
+
+Creates a tool from a function. The function and argument descriptions are extracted from the function docstring with the format:
+```
+            FUNC_DESCPITON
+            Arguments:
+            ARG1 --- ARG1_DESCRIPTION
+            ARG2 --- ARG2_DESCRIPTION
+            ...
+```
+only arguments with descriptions are included as part of the tool.
+
 ### Top-Level Scheduler Creation
 
 ```
@@ -86,12 +124,12 @@ scheduler.runLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, too
 ```
 
 - outVar - variable to hold the output string from the LLM model
-- callVar - [Simon]
 - conversation - conversation object that can be used to store the total conversation performed
 - model - model to use (overriding default model)
 - msg - MsgSeq AST to be used to construct the query
 - formatFunc - python function that can alternatively be used to construct a query
-- tools - [Simon]
+- callVar - variable to hold the list of calls made by the LLM, if there is any. If a call has unparseable argument or has an unknown function name, it should have an exception object under the key "exception". If a call has a handler, it should have the handler return value under the key "return". 
+- tools - list of Tool objects used to generate the tools parameter.
 - pos - positional arguments for formatFunc
 - kw - keyword arguments for formatFunc
 - vmap - VarMap object to provide a set of variable object assignment to be performend before the task is started.

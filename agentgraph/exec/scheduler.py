@@ -10,7 +10,7 @@ from agentgraph.core.graph import VarMap, GraphNested, GraphNode, GraphNodeBranc
 from agentgraph.core.mutvar import MutVar
 from agentgraph.core.var import Var
 from agentgraph.core.msgseq import MsgSeq
-from agentgraph.core.toollist import ToolList, ToolsReflect
+from agentgraph.core.tools import Tool
 from agentgraph.core.llmmodel import LLMModel
 import agentgraph.config
 
@@ -397,7 +397,7 @@ class Scheduler:
     def runPythonAgent(self, pythonFunc, pos: list = None, kw: dict = None, out: list = None, vmap: VarMap = None):
         self.addTask(createPythonAgent(pythonFunc, pos, kw, out).start, vmap)
 
-    def runLLMAgent(self, outVar: Var, callVar: Var = None, conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, tools: ToolList = None, pos: list = None, kw: dict = None, vmap: VarMap = None):
+    def runLLMAgent(self, outVar: Var, callVar: Var = None, conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, tools: list[Tool] = None, pos: list = None, kw: dict = None, vmap: VarMap = None):
         self.addTask(createLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, tools, pos, kw).start, vmap)
 
     def checkFinishScope(self):

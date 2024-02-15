@@ -112,7 +112,7 @@ class GraphNested(GraphNode):
 class GraphLLMAgent(GraphNode):
     """Run some action.  This is a LLM Agent."""
     
-    def __init__(self, outVar: Var, callVar: Var, conversation: Var, model: LLMModel, msg: MsgSeq, formatFunc, tools: list[Tool], pos: list, kw: dict):
+    def __init__(self, outVar: Var, conversation: Var, model: LLMModel, msg: MsgSeq, formatFunc, callVar: Var, tools: list[Tool], pos: list, kw: dict):
         super().__init__()
         self.outVar = outVar
         self.callVar = callVar
@@ -121,7 +121,6 @@ class GraphLLMAgent(GraphNode):
         self.msg = msg
         self.formatFunc = formatFunc
         self.tools = tools
-        self.toolHandlers = toolHandlers
         self.pos = pos if pos != None else []
         self.kw = kw if kw != None else {}
         
@@ -199,11 +198,11 @@ class GraphLLMAgent(GraphNode):
             from agentgraph.exec.scheduler import getCurrentScheduler
             model = getCurrentScheduler().getDefaultModel()
         
-        message = await model.sendData(output, toolsParam)
+        message = await model.sendData(inConv, toolsParam)
         content = message["content"] if "content" in message else None
         toolCalls = message["tool_calls"] if "tool_calls" in message else None
 
-        outStr = content if content is not None else json.dumps(tool_calls)
+        outStr = content if content is not None else json.dumps(toolCalls)
         
         # Update conversation with tool calls
         if self.conversation is not None:
@@ -217,32 +216,26 @@ class GraphLLMAgent(GraphNode):
             actConv.loadConv(inConv)
             actConv.push(outStr)
 
-=======
-            outStr = content if content is not None else json.dumps(toolCalls)
-            varMap[self.conversation].push(outStr)
-        
->>>>>>> 96195ca (refactor toollist into list of tool objects)
         # Put result in output map
         outMap = dict()
         outMap[self.outVar] = content
 
-        callResults = None
         if toolCalls is not None and handlers is not None:
-            callResults = handleCalls(toolCalls, handlers, varMap)
+            handleCalls(toolCalls, handlers, varMap)
 
             # Update conversation with tool call results
             if self.conversation is not None:
-                for call in callResults:
+                for call in toolCalls:
                     if "return" in call:
                         toolMsg = json.dumps({"role": "tool", "tool_call_id": call["id"], "name": call["function"]["name"], "content": call["return"]})
                         varMap[self.conversation].push(toolMsg)
 
         if self.callVar is not None:
-            outMap[self.callVar] = callResults if callResults is not None else toolCalls
+            outMap[self.callVar] = toolCalls
         
         return outMap
 
-def handleCalls(calls: list, handlers: dict, varMap: dict) -> list:
+def handleCalls(calls: list, handlers: dict, varMap: dict):
    for call in calls:
        func = call['function']
        try:
@@ -256,7 +249,6 @@ def handleCalls(calls: list, handlers: dict, varMap: dict) -> list:
                     args[arg] = varMap[var]
            if handler is not None:
                call["return"] = handler(**args)
-   return calls
 
 class GraphPythonAgent(GraphNested):
     """Run some action.  This is a Python Agent."""
@@ -434,16 +426,16 @@ class VarMap:
         self._varMap[var] = val
         return var
     
-def createLLMAgent(outVar: Var, callVar: Var = None, conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, tools: list[Tool] = None, toolHandlers: dict = None, pos: list = None, kw: dict = None) -> GraphPair:
+def createLLMAgent(outVar: Var, conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, callVar: Var = None, tools: list[Tool] = None, pos: list = None, kw: dict = None) -> GraphPair:
     """Creates a LLM agent task.
 
     Arguments:
     outVar --- a Variable that will have the value of the output of the LLM.
-    callVar --- a Variable that will have the list of calls made by the LLM, if there is any. If a call has arguments that cannot be parsed as json, or if the called tool can't be found in the tools passed in, an exception is stored in the call with the key "exception". Otherwise if the called tool has a handler, the handler is called and the result is stored in the call with the key "return".  
     conversation --- a Variable that will point to the conversation object for this LLM.
     msg --- a MsgSeq object that can be used to generate the input to the LLM. (default None)
     formatFunc --- a Python function that generates the input to the LLM. (default None)
-    tools --- a list of Tool objects that can be used to generate the tools parameter to the LLM.
+    callVar --- a Variable that will have the list of calls made by the LLM, if there is any. If a call has arguments that cannot be parsed as json, or if the called tool can't be found in the tools passed in, an exception is stored in the call with the key "exception". Otherwise if the called tool has a handler, the handler is called and the result is stored in the call with the key "return".  
+    tools --- a list of Tool objects that are used to generate the tools parameter to the LLM.
     inVars --- a dict mapping from names to Vars for the input to the formatFunc Python function. (default None)
     model --- a Model object for performing the LLM call (default None)
 
@@ -454,7 +446,7 @@ def createLLMAgent(outVar: Var, callVar: Var = None, conversation: Var = None, m
     assert msg is None or formatFunc is None, "Cannot specify both msg and formatFunc."
         
     checkInVars(pos, kw)
-    llmAgent = GraphLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, tools, toolHandlers, pos, kw)
+    llmAgent = GraphLLMAgent(outVar, conversation, model, msg, formatFunc, callVar, tools, pos, kw)
     return GraphPair(llmAgent, llmAgent)
 
 def createPythonAgent(pythonFunc, pos: list = None, kw: dict = None, out: list = None) -> GraphPair:

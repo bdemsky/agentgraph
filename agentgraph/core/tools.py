@@ -21,13 +21,13 @@ class Tool:
 class ToolReflect(Tool):
     def __init__(self, func: Callable, createHandler: bool = True):
         """
-        func should be a callable available for the LLM to call. The function and argument descriptions are extracted from the function docstring with the format
+        func should be a callable available for the LLM to call. The function and argument descriptions are extracted from the function docstring with the format:
             FUNC_DESCPITON
             Arguments:
             ARG1 --- ARG1_DESCRIPTION
             ARG2 --- ARG2_DESCRIPTION
             ...
-        only arguments with descriptions are included in the request to LLM
+        only arguments with descriptions are included in the request to LLM.
         """
         super().__init__()
         self.vars = set()
@@ -46,9 +46,9 @@ class ToolReflect(Tool):
         return self.vars
 
 class ToolTemplate(Tool):
-    def __init__(self, tools: 'Tools', name: str, vars: set, handler: Callable):
+    def __init__(self, toolloader: 'ToolLoader', name: str, handler: Callable, vars: set):
         super().__init__()
-        self.tools = tools
+        self.toolloader = toolloader
         self.name = name
         self.vars = vars
         if type(handler) is ArgMapFunc:
@@ -61,9 +61,9 @@ class ToolTemplate(Tool):
         for var in varsMap:
             value = varsMap[var]
             data[var.getName()] = value
-        val = self.tools.runTemplate(self.name, data)
+        val = self.toolloader.runTemplate(self.name, data)
         toolSig = json.loads(val)
-        validate_tool_sig(toolSig)
+        validateToolSig(toolSig)
         return toolSig
 
     def getVars(self) -> set:
@@ -72,15 +72,15 @@ class ToolTemplate(Tool):
     def getHandler(self) -> dict:
         return self.handler
 
-def validate_tool_sig(tool):
+def validateToolSig(tool):
     assert type(tool) is dict, "tool must be a dictionary"
     assert "type" in tool, "missing type in tool"
     assert tool["type"] == "function", "currently only function is supported in tools"
     assert "function" in tool, "missing function in tool"
 
 class ToolLoader(JinjaManager):
-    def loadTool(self, tool_name: str, vars: set = set(), handler: Callable = None) -> ToolTemplate:
+    def loadTool(self, tool_name: str, handler: Callable = None, vars: set = set()) -> ToolTemplate:
         """
         handlers should be a dictionary that maps the name of each tool to a callable that handles the tool call. 
         """
-        return ToolTemplate(self, tool_name, vars, handler)  
+        return ToolTemplate(self, tool_name, handler, vars)  
