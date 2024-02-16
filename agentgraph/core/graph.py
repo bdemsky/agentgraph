@@ -130,7 +130,7 @@ class GraphLLMAgent(GraphNode):
         if self.conversation is not None:
             l.append(self.conversation)
         if self.msg != None:
-            for var in self.msg.getVars():
+            for var in self.msg.getReadSet():
                 if not var in l:
                     l.append(var)
         if self.tools != None:

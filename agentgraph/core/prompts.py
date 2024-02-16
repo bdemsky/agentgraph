@@ -1,5 +1,6 @@
 from agentgraph.core.conversation import Conversation
 from agentgraph.core.jinjamanager import JinjaManager
+from agentgraph.core.mutable import Mutable
 from agentgraph.core.msgseq import MsgSeq
 from agentgraph.core.var import Var
 
@@ -26,13 +27,15 @@ class Prompt(MsgSeq):
         val = self.prompts.runTemplate(self.name, data)
         return val
 
-    def getVars(self) -> set:
-        varset = set()
+    def getReadSet(self) -> set:
+        readset = set()
         for name in self.vals:
             val = self.vals[name]
             if isinstance(val, Var):
-                varset.add(val)
-        return varset
+                readset.add(val)
+            elif isinstance(val, Mutable):
+                readset.add(val)
+        return readset
 
 class Prompts(JinjaManager):
     def loadPrompt(self, prompt_name: str, vals: dict = None) -> Prompt:

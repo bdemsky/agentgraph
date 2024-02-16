@@ -20,7 +20,7 @@ class Var(MsgSeq):
     def isRead(self) -> bool:
         return False
 
-    def getVars(self) -> set:
+    def getReadSet(self) -> set:
         return { self }
 
     def exec(self, varsMap: dict):

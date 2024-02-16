@@ -1,3 +1,5 @@
+from agentgraph.core.mutable import Mutable
+
 class MsgSeq:
     def __init__(self):
         pass
@@ -42,7 +44,7 @@ class MsgSeq:
     def system(self, o: 'MsgSeq'):
         return MsgSystem(self, o)
 
-    def getitem(self, slicerange):
+    def __getitem__(self, slicerange):
         return MsgSlice(self, slicerange)
     
     def isExchange(self) -> bool:
@@ -51,22 +53,36 @@ class MsgSeq:
     def isSingleMsg(self) -> bool:
         return False
 
-    def getVars(self) -> set:
+    def getReadSet(self) -> set:
         return set()
 
     def exec(self, varsMap: dict):
         pass
 
+def helperGetReadSet(msgseq) -> set:
+    if isinstance(msgseq, Mutable):
+        return {msgseq}
+    elif isinstance(msgseq, MsgSeq):
+        return msgseq.getReadSet()
+    else:
+        return set()
+    
+def helperExec(msgseq, varsMap: dict):
+    if isinstance(msgseq, str):
+        return msgseq
+    else:
+        return msgseq.exec(varsMap)
+    
 class MsgSlice(MsgSeq):
     def __init__(self, left: MsgSeq, slicerange: slice):
         self._left = left
         self._range = slicerange
 
-    def getVars(self) -> set:
-        return self._left.getVars()
+    def getReadSet(self) -> set:
+        return helperGetReadSet(self._left)
 
     def exec(self, varsMap:dict):
-        l = self._left.exec(varsMap)
+        l = helperExec(self._left, varsMap)
         if not isinstance(l, list):
             raise RuntimeError("Slicing applied to non list")
         return l[self._range]
@@ -86,19 +102,19 @@ class MsgChooser(MsgSeq):
         self._left = left
         self._right = right
 
-    def getVars(self) -> set:
-        return self._left.getVars().union(self._right.getVars())
+    def getReadSet(self) -> set:
+        return helperGetReadSet(self._left).union(helperGetReadSet(self._right))
 
     def exec(self, varsMap: dict):
-        vleft = self._left.exec(varsMap)
+        vleft = helperExec(self._left, varsMap)
         if not isinstance(self._right, MsgChoice):
             raise RuntimeError("RHS of a > is not a choice")
 
         if isinstance(vleft, list):
             if len(vleft) == 0:
-                return self._right._right.exec(varsMap)
+                return helperExec(self._right._right, varsMap)
             else:
-                return self._right._left.exec(varsMap)
+                return helperExec(self._right._left, varsMap)
         else:
             raise RuntimeError("LHS of a > is not a list")
     
@@ -109,8 +125,8 @@ class MsgChoice(MsgSeq):
         self._left = left
         self._right = right
 
-    def getVars(self) -> set:
-        return self._left.getVars().union(self._right.getVars())
+    def getReadSet(self) -> set:
+        return helperGetReadSet(self._left).union(helperGetReadSet(self._right))
 
     
 class MsgConcat(MsgSeq):
@@ -119,12 +135,12 @@ class MsgConcat(MsgSeq):
         self._left = left
         self._right = right
 
-    def getVars(self) -> set:
-        return self._left.getVars().union(self._right.getVars())
+    def getReadSet(self) -> set:
+        return helperGetReadSet(self._left).union(helperGetReadSet(self._right))
 
     def exec(self, varsMap: dict):
-        vleft = self._left.exec(varsMap)
-        vright = self._right.exec(varsMap)
+        vleft = helperExec(self._left, varsMap)
+        vright = helperExec(self._right, varsMap)
         if isinstance(vright, str):
             doExtendList(vleft, vright)
             return vleft
@@ -140,11 +156,11 @@ class MsgSummary(MsgSeq):
         super().__init__()
         self.msg = msg
 
-    def getVars(self) -> set:
-        return self.msg.getVars()
+    def getReadSet(self) -> set:
+        return helperGetReadSet(self.msg)
 
     def exec(self, varsMap: dict):
-        val = self.msg.exec(varsMap)
+        val = helperExec(self.msg, varsMap)
         response = ""
         for msg in val:
             if msg["role"] == "assistant":
@@ -159,15 +175,15 @@ class MsgSystem(MsgSeq):
         self._systemMsg = systemMsg
         self._conv = conv
 
-    def getVars(self) -> set:
-        return self._systemMsg.getVars().union(self._conv.getVars())
+    def getReadSet(self) -> set:
+        return helperGetReadSet(self._systemMsg).union(helperGetReadSet(self._conv))
         
     def isExchange(self) -> bool:
         return True
 
     def exec(self, varsMap: dict):
-        vright = self._conv.exec(varsMap)
-        systemmsg = self._systemMsg.exec(varsMap)
+        vright = helperExec(self._conv, varsMap)
+        systemmsg = helperExec(self._systemMsg, varsMap)
         vleft = [{"role": "system", "content": systemmsg}]
 
         if isinstance(vright, str):

@@ -27,6 +27,6 @@ class Mutable:
         getCurrentScheduler().objAccess(self)
         # We own this mutable now
         self._owner = currTask
-        
+
     def _snapshot(self):
         pass
