@@ -53,10 +53,15 @@ prompts = agentgraph.Prompts(directory)
 Creates a prompt object using the specified directory.
 
 ```
-prompts.loadPrompt(filename)
+prompts.loadPrompt(filename, dictionary)
 ```
 
-Loads a prompt from the specified filename.
+Loads a prompt from the specified filename.  The file should use the
+Jinja templating language syntax.
+
+- dictionary - a map of names to either a variable or an object that
+  should be used for generating the prompt.  Variables will be
+  resolved when the prompt is generated.
 
 ### Tools
 
@@ -133,6 +138,9 @@ scheduler.runLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, too
 - pos - positional arguments for formatFunc
 - kw - keyword arguments for formatFunc
 - vmap - VarMap object to provide a set of variable object assignment to be performend before the task is started.
+
+### Query Generation
+
 
 ### Auxilary Data Structures
 

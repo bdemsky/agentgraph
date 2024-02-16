@@ -367,61 +367,54 @@ def checkInVars(pos: list, kw: dict):
 class VarMap:
     def __init__(self):
         self._varMap = dict()
-        self._nameToVar = dict()
 
     def _getVariable(self, name: str) -> Var:
-        if not name in self._nameToVar:
-            self._nameToVar[name] = Var(name)
-        return self._nameToVar[name]
+        return Var(name)
 
     def _getBoolVariable(self, name: str) -> Var:
-        if not name in self._nameToVar:
-            self._nameToVar[name] = BoolVar(name)
-        return self._nameToVar[name]
+        return BoolVar(name)
 
     def _getMutVariable(self, name: str) -> MutVar:
-        if not name in self._nameToVar:
-            self._nameToVar[name] = MutVar(name)
-        return self._nameToVar[name]
+        return MutVar(name)
         
     def getVarMap(self) -> dict:
         return self._varMap
         
-    def mapToConversation(self, name: str, val: Conversation = None) -> MutVar:
+    def mapToConversation(self, name: str = None, val: Conversation = None) -> MutVar:
         var = self._getMutVariable(name)
         if val is None:
             val = Conversation()
         self._varMap[var] = val
         return var
 
-    def mapToFileStore(self, name: str, val: FileStore = None) -> MutVar:
+    def mapToFileStore(self, name: str = None, val: FileStore = None) -> MutVar:
         var = self._getMutVariable(name)
         if val is None:
             val = FileStore()
         self._varMap[var] = val
         return var
 
-    def mapToMutable(self, name: str, val: Mutable) -> MutVar:
+    def mapToMutable(self, name: str = None, val: Mutable = None) -> MutVar:
         var = self._getMutVariable(name)
         self._varMap[var] = val
         return var
     
-    def mapToBool(self, name: str, val: bool) -> BoolVar:
+    def mapToBool(self, name: str = None, val: bool = False) -> BoolVar:
         var = self._getBoolVariable(name)
         self._varMap[var] = val
         return var
 
-    def mapToNone(self, name: str) -> Var:
+    def mapToNone(self, name: str = None) -> Var:
         var = self._getVariable(name)
         self._varMap[var] = None
         return var
 
-    def mapToInt(self, name: str, val: int) -> Var:
+    def mapToInt(self, name: str = None, val: int = 0) -> Var:
         var = self._getVariable(name)
         self._varMap[var] = val
         return var
     
-    def mapToString(self, name: str, val: str) -> Var:
+    def mapToString(self, name: str = None, val: str = "") -> Var:
         var = self._getVariable(name)
         self._varMap[var] = val
         return var

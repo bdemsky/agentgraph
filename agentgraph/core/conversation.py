@@ -89,9 +89,3 @@ class Conversation(Mutable, MsgSeq):
         self._sent.append(sent)
         self._recv.append(recv)
 
-    def summaryRecv(self) -> str:
-        self.waitForAccess()
-        val = ""
-        for l in self._recv:
-            val += l;
-        return val

@@ -12,7 +12,7 @@ def testFunc1(scheduler) -> list:
     ovarR = ovarA
     
     for i in range(3):
-        pB = prompts.loadPrompt("PromptB", {ovarR})
+        pB = prompts.loadPrompt("PromptB", {'Recipe': ovarR})
         ovarB = agentgraph.Var("Recipe")
         scheduler.runLLMAgent(ovarB, msg = sys ** pB)
         ovarR = ovarB

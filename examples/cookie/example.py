@@ -8,14 +8,14 @@ scheduler = agentgraph.getRootScheduler(model)
 prompts = agentgraph.Prompts("./examples/cookie/prompts/")
 
 sys = prompts.loadPrompt("System")
-ovarA = agentgraph.Var("Recipe")
+ovarA = agentgraph.Var()
 pA = prompts.loadPrompt("PromptA")
 scheduler.runLLMAgent(ovarA, msg = sys ** pA)
 ovarR = ovarA
 
 for i in range(3):
-    pB = prompts.loadPrompt("PromptB", {ovarR})
-    ovarB = agentgraph.Var("Recipe")
+    pB = prompts.loadPrompt("PromptB", { 'Recipe': ovarR})
+    ovarB = agentgraph.Var()
     scheduler.runLLMAgent(ovarB, msg = sys ** pB)
     ovarR = ovarB
     

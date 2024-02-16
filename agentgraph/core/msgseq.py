@@ -145,7 +145,13 @@ class MsgSummary(MsgSeq):
 
     def exec(self, varsMap: dict):
         val = self.msg.exec(varsMap)
-        return val.summaryRecv()
+        response = ""
+        for msg in val:
+            if msg["role"] == "assistant":
+                response += msg["content"]
+        
+        return response
+
     
 class MsgSystem(MsgSeq):
     def __init__(self, systemMsg: MsgSeq, conv: MsgSeq):

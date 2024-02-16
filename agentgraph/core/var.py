@@ -1,8 +1,14 @@
 from agentgraph.core.msgseq import MsgSeq
 
+varNameCount = 0
+
 class Var(MsgSeq):
-    def __init__(self, name: str):
+    def __init__(self, name: str = None):
         super().__init__()
+        if name is None:
+            global varNameCount
+            name = f"VAR{varNameCount}"
+            varNameCount += 1
         self.name = name
 
     def getName(self) -> str:

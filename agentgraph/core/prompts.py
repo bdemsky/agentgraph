@@ -1,13 +1,14 @@
 from agentgraph.core.conversation import Conversation
 from agentgraph.core.jinjamanager import JinjaManager
 from agentgraph.core.msgseq import MsgSeq
+from agentgraph.core.var import Var
 
 class Prompt(MsgSeq):
-    def __init__(self, prompts: 'Prompts', name: str, vars: set):
+    def __init__(self, prompts: 'Prompts', name: str, vals: dict):
         super().__init__()
         self.prompts = prompts
         self.name = name
-        self.vars = vars
+        self.vals = vals
 
     def isSingleMsg(self) -> bool:
         return True
@@ -15,17 +16,26 @@ class Prompt(MsgSeq):
     def exec(self, varsMap: dict) -> str:
         """Compute value of prompt at runtime"""
         data = dict()
-        for var in varsMap:
-            value = varsMap[var]
-            data[var.getName()] = value
+        # Take input map and resolve and variables that were used
+        for name in self.vals:
+            val = self.vals[name]
+            if isinstance(val, Var):
+                data[name] = varsMap[val]
+            else:
+                data[name] = val
         val = self.prompts.runTemplate(self.name, data)
         return val
 
     def getVars(self) -> set:
-        return self.vars
+        varset = set()
+        for name in self.vals:
+            val = self.vals[name]
+            if isinstance(val, Var):
+                varset.add(val)
+        return varset
 
 class Prompts(JinjaManager):
-    def loadPrompt(self, prompt_name: str, vars: set = None) -> Prompt:
-        if vars == None:
-            vars = set()
-        return Prompt(self, prompt_name, vars)
+    def loadPrompt(self, prompt_name: str, vals: dict = None) -> Prompt:
+        if vals == None:
+            vals = dict()
+        return Prompt(self, prompt_name, vals)
