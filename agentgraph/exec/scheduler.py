@@ -397,8 +397,8 @@ class Scheduler:
     def runPythonAgent(self, pythonFunc, pos: list = None, kw: dict = None, out: list = None, vmap: VarMap = None):
         self.addTask(createPythonAgent(pythonFunc, pos, kw, out).start, vmap)
 
-    def runLLMAgent(self, outVar: Var, callVar: Var = None, conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, tools: list[Tool] = None, pos: list = None, kw: dict = None, vmap: VarMap = None):
-        self.addTask(createLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, tools, pos, kw).start, vmap)
+    def runLLMAgent(self, outVar: Var, msg: MsgSeq = None, conversation: Var = None, callVar: Var = None, tools: list[Tool] = None, formatFunc = None, pos: list = None, kw: dict = None, model: LLMModel = None, vmap: VarMap = None):
+        self.addTask(createLLMAgent(outVar, msg, conversation, callVar, tools, formatFunc, pos, kw, model).start, vmap)
 
     def checkFinishScope(self):
         if self.windowSize == 0:

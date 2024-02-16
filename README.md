@@ -125,18 +125,18 @@ scheduler.runPythonAgent(function, pos, kw, out, vmap)
 ### Running LLM Tasks
 
 ```
-scheduler.runLLMAgent(outVar, callVar, conversation, model, msg, formatFunc, tools, pos, kw, vmap)
+scheduler.runLLMAgent(outVar, msg, conversation, model, callVar, tools, formatFunc, pos, kw, vmap)
 ```
 
 - outVar - variable to hold the output string from the LLM model
-- conversation - conversation object that can be used to store the total conversation performed
-- model - model to use (overriding default model)
 - msg - MsgSeq AST to be used to construct the query
-- formatFunc - python function that can alternatively be used to construct a query
+- conversation - conversation object that can be used to store the total conversation performed
 - callVar - variable to hold the list of calls made by the LLM, if there is any. If a call has unparseable argument or has an unknown function name, it should have an exception object under the key "exception". If a call has a handler, it should have the handler return value under the key "return". 
 - tools - list of Tool objects used to generate the tools parameter.
+- formatFunc - python function that can alternatively be used to construct a query
 - pos - positional arguments for formatFunc
 - kw - keyword arguments for formatFunc
+- model - model to use (overriding default model)
 - vmap - VarMap object to provide a set of variable object assignment to be performend before the task is started.
 
 ### Query Generation

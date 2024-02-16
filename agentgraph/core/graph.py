@@ -419,19 +419,19 @@ class VarMap:
         self._varMap[var] = val
         return var
     
-def createLLMAgent(outVar: Var, conversation: Var = None, model: LLMModel = None, msg: MsgSeq = None, formatFunc = None, callVar: Var = None, tools: list[Tool] = None, pos: list = None, kw: dict = None) -> GraphPair:
+def createLLMAgent(outVar: Var, msg: MsgSeq = None, conversation: Var = None, callVar: Var = None, tools: list[Tool] = None, formatFunc = None, pos: list = None, kw: dict = None, model: LLMModel = None) -> GraphPair:
     """Creates a LLM agent task.
 
     Arguments:
     outVar --- a Variable that will have the value of the output of the LLM.
-    conversation --- a Variable that will point to the conversation object for this LLM.
     msg --- a MsgSeq object that can be used to generate the input to the LLM. (default None)
-    formatFunc --- a Python function that generates the input to the LLM. (default None)
+    conversation --- a Variable that will point to the conversation object for this LLM.
+    model --- a Model object for performing the LLM call (default None)
     callVar --- a Variable that will have the list of calls made by the LLM, if there is any. If a call has arguments that cannot be parsed as json, or if the called tool can't be found in the tools passed in, an exception is stored in the call with the key "exception". Otherwise if the called tool has a handler, the handler is called and the result is stored in the call with the key "return".  
     tools --- a list of Tool objects that are used to generate the tools parameter to the LLM.
     inVars --- a dict mapping from names to Vars for the input to the formatFunc Python function. (default None)
-    model --- a Model object for performing the LLM call (default None)
-
+    formatFunc --- a Python function that generates the input to the LLM. (default None)
+    
     You must either provide a msg object or a formatFunc object (and not both).
     """
 
