@@ -63,7 +63,7 @@ class LLMModel:
             path = full_path / name
             if not path.exists():
                 break
-            contents = key.read_text()
+            contents = path.read_text()
             if contents == encoded:
                 break
             count = count + 1

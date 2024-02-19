@@ -16,6 +16,13 @@ class MsgSeq:
     
     def choice(self, b):
         return MsgChooser(self, b)    
+
+    def __add__(a, b):
+        """a + b combines a and b into one message."""
+        return a.addmsg(b)
+
+    def addmsg(self, o):
+        return MsgAdd(self, o)
     
     def __and__(a, b):
         """a & b adds message b to the conversation,"""
@@ -150,6 +157,23 @@ class MsgConcat(MsgSeq):
             return vleft
         else:
             raise RuntimeError("RHS is neither string or list")
+
+class MsgAdd(MsgSeq):
+    def __init__(self, left: MsgSeq, right: MsgSeq):
+        super().__init__()
+        self._left = left
+        self._right = right
+
+    def getReadSet(self) -> set:
+        return helperGetReadSet(self._left).union(helperGetReadSet(self._right))
+
+    def exec(self, varsMap: dict):
+        vleft = helperExec(self._left, varsMap)
+        vright = helperExec(self._right, varsMap)
+        if isinstance(vright, str) and isinstance(vleft, str):
+            return vleft + vright
+        else:
+            raise RuntimeError("Either LHS or RGS is not string.")
         
 class MsgSummary(MsgSeq):
     def __init__(self, msg: MsgSeq):
@@ -190,7 +214,7 @@ class MsgSystem(MsgSeq):
             doExtendList(vleft, vright)
             return vleft
         elif isinstance(vright, list):
-            for msg in right:
+            for msg in vright:
                 doExtendList(vleft, msg["content"])
             return vleft
         else:
