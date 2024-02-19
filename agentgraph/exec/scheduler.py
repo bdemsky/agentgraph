@@ -49,6 +49,9 @@ class ScheduleNode:
         self.refs.add(ref)
         return True
 
+    def getRefs(self) -> set:
+        return self.refs
+    
     def assertOwnership(self):
         for ref in self.refs:
             if isinstance(ref, agentgraph.core.mutable.Mutable):
@@ -421,7 +424,10 @@ class Scheduler:
                 # Not a variable, so see if it is a Mutable
                 if not isinstance(var, agentgraph.core.var.Var):
                     if isinstance(var, agentgraph.core.mutable.Mutable):
-                        scheduleNode.addRef(var)
+                        # Add ref and if we are new then add it as a writer and increment depCount...
+                        if scheduleNode.addRef(var):
+                            if self.scoreboard.addWriter(var, scheduleNode) == False:
+                                depCount += 1
                     continue
                 
                 if var not in self.varMap:
@@ -543,13 +549,12 @@ class Scheduler:
                 if self.varMap[var] == node:
                     self.varMap[var] = outVarValMap[var]
 
-        #Release our heap dependences
-        inVarValMap = node.getInVarMap()
-        for var in inVarValMap:
-            if var.isMutable():
-                val = inVarValMap[var]
-                self.scoreboard.removeWaiter(val, node, self)
-                
+        # Release our heap dependences
+        refSet = node.getRefs()
+        for r in refSet:
+            self.scoreboard.removeWaiter(r, node, self)
+
+
         if self.windowSize < agentgraph.config.MAX_WINDOW_SIZE and self.windowStall != None:
             if self.windowStall != None:
                 tmp = self.windowStall
