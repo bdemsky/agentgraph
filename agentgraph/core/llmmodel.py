@@ -10,11 +10,9 @@ class LLMModel:
         if useOpenAI:
             if endpoint is not None:
                 self.client = AsyncOpenAI(base_url=endpoint,
-                                          api_version=api_version,
                                           api_key=apikey)
             else:
-                self.client = AsyncOpenAI(api_version=api_version,
-                                          api_key=apikey)
+                self.client = AsyncOpenAI(api_key=apikey)
         else:
             self.client = AsyncAzureOpenAI(azure_endpoint=endpoint,
                                            api_version=api_version,
