@@ -163,3 +163,15 @@ var.getValue()
 ```
 
 Gets the value of a variable.
+
+### Using VLLM
+
+Start VLLM with the appropriate chat endpoint.  For example:
+```
+python -m vllm.entrypoints.openai.api_server --model meta-llama/Llama-2-7b-chat-hf
+```
+
+Setup agentgraph with the appropriate LLMModel object.  For example:
+```
+model = agentgraph.LLMModel("http://127.0.0.1:8000/v1/", os.getenv("OPENAI_API_KEY"), "meta-llama/Llama-2-7b-chat-hf", "meta-llama/Llama-2-7b-chat-hf", 34000, useOpenAI=True)
+```
