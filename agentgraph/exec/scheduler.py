@@ -6,9 +6,10 @@ import traceback
 import time
 
 from agentgraph.exec.engine import Engine
-from agentgraph.core.graph import VarMap, GraphNested, GraphNode, GraphNodeBranch, GraphPythonAgent, GraphVarWait, createPythonAgent, createLLMAgent
+from agentgraph.core.graph import VarMap, GraphNested, GraphNode, GraphPythonAgent, GraphVarWait, createPythonAgent, createLLMAgent
 from agentgraph.core.mutvar import MutVar
 from agentgraph.core.var import Var
+from agentgraph.core.varset import VarSet
 from agentgraph.core.msgseq import MsgSeq
 from agentgraph.core.tools import Tool
 from agentgraph.core.llmmodel import LLMModel
@@ -41,7 +42,7 @@ class ScheduleNode:
         
     def addRef(self, ref) -> bool:
         """Keeps track of the heap references this task will use.  If
-        we see the same reference multiple times, return false on the
+        we see the same reference multiple times, return false for the
         duplicates"""
         
         if ref in self.refs:
@@ -69,7 +70,6 @@ class ScheduleNode:
         count = self.depCount - 1
         self.depCount = count;
         return count == 0
-
 
     def getGraphNode(self) -> GraphNode:
         """Returns the underlying graph node this task will execute."""
@@ -227,6 +227,7 @@ class ScoreBoard:
         """Removes a waiting schedulenode from the list.  Returns
         false if that node had already cleared this queue and true if
         it was still waiting."""
+
         first, last = self.accesses[object]
         if node in first.getWaiters():
             first.getWaiters().remove(node)
@@ -275,10 +276,10 @@ class TaskNode:
 
 class Scheduler:
     """Scheduler class.  This does all of the scheduling for a given Nested Graph."""
-    
-    def __init__(self, model: LLMModel, scope: ScheduleNode, parent: 'Scheduler', engine: Engine):
 
-        """Object initializer for a new Scheduler:
+    def __init__(self, model: LLMModel, scope: ScheduleNode, parent: 'Scheduler', engine: Engine):
+        """
+        Object initializer for a new Scheduler:
         model - the model we want to use by default
 
         scope - the scope we are scheduling
@@ -353,41 +354,55 @@ class Scheduler:
         if (self.startTasks == taskNode):
             self.runTask(taskNode)
 
+    def _checkVarForMutable(self, varMap: dict, writeSet: set, currSchedulerTask: ScheduleNode, v):
+        """
+        Check whether v is a mutable that we need to revoke ownership
+        for.
+        """
+        if not isinstance(v, agentgraph.core.var.Var):
+            value = v
+        elif v in writeSet:
+            # See if v is written by some prior task and thus by
+            # assumption is not a mutable the parent has access
+            # to.
+            return
+        elif v in varMap:
+            value = varMap[v]
+        elif v in self.varMap:
+            value = self.varMap[v]
+        else:
+            return
+        
+        if isinstance(value, agentgraph.core.mutable.Mutable):
+            mutTask = value.getOwner()
+            # See if parent owns this Mutable.  If so, we know
+            # there will be no race when we revoke ownership
+            # by setting the owner to dummyTask.  If the
+            # parent doesn't own the Mutable, it won't be
+            # racing with children, and so we have no problem.
+            if mutTask == currSchedulerTask:
+                value.setOwner(dummyTask)
+            
     def checkForMutables(self, node: GraphNode, varMap: dict):
-        """Handle and references to mutable objects.  If an mutable
-        object is owned by the parent task, revoke ownership."""
+        """
+        Handle and references to mutable objects.  If an mutable
+        object is owned by the parent task, revoke ownership.
+        """
+
         writeSet = set()
         currSchedulerTask = getCurrentTask()
         while node is not None:
-            for v in node.getReadSet():
-                if not isinstance(v, agentgraph.core.var.Var):
-                    value = v
-                elif v in writeSet:
-                    # See if v is written by some prior task and thus by
-                    # assumption is not a mutable the parent has access
-                    # to.
-                    continue
-                elif v in varMap:
-                    value = varMap[v]
-                elif v in self.varMap:                
-                    value = self.varMap[v]
+            for var in node.getReadSet():
+                if isinstance(var, VarSet):
+                    for v in var:
+                        self._checkVarForMutable(varMap, writeSet, currSchedulerTask, v)
                 else:
-                    continue
-                
-                if isinstance(value, agentgraph.core.mutable.Mutable):
-                    mutTask = value.getOwner()
-                    # See if parent owns this Mutable.  If so, we know
-                    # there will be no race when we revoke ownership
-                    # by setting the owner to dummyTask.  If the
-                    # parent doesn't own the Mutable, it won't be
-                    # racing with children, and so we have no problem.
-                    if mutTask == currSchedulerTask:
-                        value.setOwner(dummyTask)
+                    self._checkVarForMutable(varMap, writeSet, currSchedulerTask, var)
                     
             writeSet.update(node.getWriteVars())
             node = node.getNext(0)
-            
-        
+
+
     def runTask(self, task: TaskNode):
         """Starts up the first task."""
 
@@ -406,7 +421,40 @@ class Scheduler:
     def checkFinishScope(self):
         if self.windowSize == 0:
             self.finishScope()
-            
+
+    def _scanNodeVar(self, node: GraphNode, scheduleNode: ScheduleNode, var, depCount: int) -> int:
+        # Not a variable, so see if it is a Mutable
+        if not isinstance(var, agentgraph.core.var.Var):
+            if isinstance(var, agentgraph.core.mutable.Mutable):
+                # Add ref and if we are new then add it as a writer and increment depCount...
+                if scheduleNode.addRef(var):
+                    if self.scoreboard.addWriter(var, scheduleNode) == False:
+                        depCount += 1
+            return depCount
+                
+        if var not in self.varMap:
+            varName = var.getName()
+            raise RuntimeError(f"Use before define with {varName}")
+                    
+        lookup = self.varMap[var]
+        if isinstance(lookup, ScheduleNode):
+            # Variable mapped to schedule node, which means we
+            # haven't executed the relevant computation
+            depCount += 1
+            lookup.addWaiter(var, scheduleNode)
+        else:
+            # We have the value
+            scheduleNode.setInVarVal(var, lookup)
+            if var.isMutable():
+                # If the variable is mutable, add ourselves.
+                try:
+                    depCount += self.handleReference(scheduleNode, var, lookup)
+                except Exception as e:
+                    print('Error', e)
+                    print(traceback.format_exc())
+                    return depCount
+        return depCount
+                    
     def scan(self, node: GraphNode):
         """Scans nodes in graph for scheduling purposes."""
         while True:
@@ -421,36 +469,12 @@ class Scheduler:
 
             # Compute our set of dependencies
             for var in inVars:
-                # Not a variable, so see if it is a Mutable
-                if not isinstance(var, agentgraph.core.var.Var):
-                    if isinstance(var, agentgraph.core.mutable.Mutable):
-                        # Add ref and if we are new then add it as a writer and increment depCount...
-                        if scheduleNode.addRef(var):
-                            if self.scoreboard.addWriter(var, scheduleNode) == False:
-                                depCount += 1
-                    continue
-                
-                if var not in self.varMap:
-                    varName = var.getName()
-                    raise RuntimeError(f"Use before define with {varName}")
-                    
-                lookup = self.varMap[var]
-                if isinstance(lookup, ScheduleNode):
-                    # Variable mapped to schedule node, which means we
-                    # haven't executed the relevant computation
-                    depCount += 1
-                    lookup.addWaiter(var, scheduleNode)
+                if isinstance(var, VarSet):
+                    for v in var:
+                        depCount = self._scanNodeVar(node, scheduleNode, v, depCount)
                 else:
-                    # We have the value
-                    scheduleNode.setInVarVal(var, lookup)
-                    if var.isMutable():
-                        # If the variable is mutable, add ourselves.
-                        try:
-                            depCount += self.handleReference(scheduleNode, var, lookup)
-                        except Exception as e:
-                            print('Error', e)
-                            print(traceback.format_exc())
-                            return
+                    depCount = self._scanNodeVar(node, scheduleNode, var, depCount)
+
             # Save our dependence count.
             scheduleNode.setDepCount(depCount)
 
@@ -459,25 +483,11 @@ class Scheduler:
                 self.varMap[var] = scheduleNode
 
             #Compute next node to scan
-            if isinstance(node, GraphNodeBranch):
-                # If we have a branchnode, we have to see if we know
-                # the direction.
-                if scheduleNode.depCount != 0:
-                    return
-
-                # Don't want dataflow graph construction to get too
-                # far ahead of execution.
-                if self.windowSize >= agentgraph.config.MAX_WINDOW_SIZE:
-                    self.windowStall = scheduleNode
-                    return
-                edge = 1 if scheduleNode.inVarMap[node.getBranchVar()] else 0
-                node = node.getNext(edge)
-            else:
-                self.windowSize += 1
-                if (depCount == 0):
-                    self.startNestedTask(scheduleNode)
+            self.windowSize += 1
+            if (depCount == 0):
+                self.startNestedTask(scheduleNode)
                 
-                node = node.getNext(0)
+            node = node.getNext(0)
                 
             if node == None:
                 # Remove current task
@@ -514,7 +524,11 @@ class Scheduler:
             return 1
         
     def completed(self, node: ScheduleNode):
-        """We call this when a task has completed."""
+        """
+        Handles the completion of a task.  Forwards variable values
+        to tasks that need those values.  Releases all of the heap
+        dependences for the task.
+        """
         self.windowSize -= 1
         
         if node == self.scope:
@@ -629,14 +643,7 @@ class Scheduler:
         """Starts task including conditional branch instruction."""
         
         graphnode = scheduleNode.getGraphNode()
-        
-        if isinstance(graphnode, GraphNodeBranch):
-            #Process branch task
-            edge = 1 if scheduleNode.inVarMap[graphnode.getBranchVar()] else 0
-            graphnode = graphnode.getNext(edge)
-            self.scan(graphnode)
-        else:
-            self.startNestedTask(scheduleNode)
+        self.startNestedTask(scheduleNode)
 
     def shutdown(self):
         """Shutdown the engine.  Care should be taken to ensure engine

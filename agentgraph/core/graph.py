@@ -83,8 +83,7 @@ class GraphVarWait(GraphNode):
         return dict()
             
 class GraphNested(GraphNode):
-    """Nested CFG Node.  Used for control flow constructs such as
-    If-Then-Else or a Loop."""
+    """Nested CFG Node."""
     
     def __init__(self, _start: GraphNode):
         super().__init__()
@@ -285,7 +284,16 @@ class GraphPythonAgent(GraphNested):
         # Build positional variables
         posList = list()
         for o in self.pos:
-            if isinstance(o, agentgraph.core.var.Var):
+            if isinstance(o, agentgraph.core.varset.VarSet):
+                news = set()
+                for v in o:
+                    if isinstance(v, agentgraph.core.var.Var):
+                        news.add(varMap[v])
+                    else:
+                        news.add(v)
+                    
+                posList.append(news)
+            elif isinstance(o, agentgraph.core.var.Var):
                 posList.append(varMap[o])
             else:
                 posList.append(o)
@@ -295,7 +303,16 @@ class GraphPythonAgent(GraphNested):
         
         inMap = dict()
         for name, o in self.kw:
-            if isinstance(o, agentgraph.core.var.Var):
+            if isinstance(o, agentgraph.core.varset.VarSet):
+                news = set()
+                for v in o:
+                    if isinstance(v, agentgraph.core.var.Var):
+                        news.add(varMap[v])
+                    else:
+                        news.add(v)
+                    
+                inMap[name] = news
+            elif isinstance(o, agentgraph.core.var.Var):
                 inMap[name] = varMap[o]
             else:
                 inMap[name] = o
@@ -313,26 +330,6 @@ class GraphPythonAgent(GraphNested):
                 index += 1
 
         return outMap
-    
-class GraphNodeNop(GraphNode):
-    """Create a Nop Node."""
-    
-    def __init__(self):
-        super().__init__()
-
-class GraphNodeBranch(GraphNode):
-    """Conditional branch node."""
-    
-    def __init__(self, branchVar):
-        super().__init__()
-        self._next.append(None)
-        self.branchVar = branchVar
-        
-    def getBranchVar(self) -> BoolVar:
-        return self.branchVar
-
-    def getReadSet(self) -> list:
-        return [self.branchVar]
     
 class GraphPair:
     """Stores the beginning and end node of a sub graph"""
@@ -413,12 +410,12 @@ class VarMap:
         var = self._getVariable(name)
         self._varMap[var] = val
         return var
-    
+
     def mapToString(self, name: str = None, val: str = "") -> Var:
         var = self._getVariable(name)
         self._varMap[var] = val
         return var
-    
+
 def createLLMAgent(outVar: Var, msg: MsgSeq = None, conversation: Var = None, callVar: Var = None, tools: list[Tool] = None, formatFunc = None, pos: list = None, kw: dict = None, model: LLMModel = None) -> GraphPair:
     """Creates a LLM agent task.
 
@@ -437,7 +434,7 @@ def createLLMAgent(outVar: Var, msg: MsgSeq = None, conversation: Var = None, ca
 
     assert msg is not None or formatFunc is not None, "Either msg or formatFunc must be specified."
     assert msg is None or formatFunc is None, "Cannot specify both msg and formatFunc."
-        
+
     checkInVars(pos, kw)
     llmAgent = GraphLLMAgent(outVar, conversation, model, msg, formatFunc, callVar, tools, pos, kw)
     return GraphPair(llmAgent, llmAgent)
@@ -450,14 +447,14 @@ def createPythonAgent(pythonFunc, pos: list = None, kw: dict = None, out: list =
     inVars --- a dict mapping from names to Vars for the input to the pythonFunc Python function. (default None)
     out --- a dict mapping from names to Vars for the output of the pythonFunc Python function.  (default None)
     """
-    
+
     checkInVars(pos, kw)
     pythonAgent = GraphPythonAgent(pythonFunc, pos, kw, out)
     return GraphPair(pythonAgent, pythonAgent)
-    
+
 def createSequence(list) -> GraphPair:
     """This creates a sequency of GraphNodes"""
-        
+
     start = list[0].start
     last = list[0].end
     for l in list[1:]:
@@ -465,69 +462,25 @@ def createSequence(list) -> GraphPair:
         last = l.end
         return GraphPair(start, last)
 
-def createDoWhile(compute: GraphPair, branchvar: BoolVar) -> GraphPair:
-    """This creates a do while loop."""
-        
-    branch = GraphNodeBranch(branchvar)
-    graph = GraphNested(compute.start)
-    compute.end.setNext(0, branch)
-    
-    #Analyze read/write vars while we still have a linear structure
-    readSet, writeSet = analyzeLinear(compute.start, branch)
-    
-    #Finish graph
-    branch.setNext(1, compute.start)
-    branch.setNext(0, None)
-    
-    #Save variable read/write results
-    graph.setReadVars(readSet)
-    graph.setWriteVars(writeSet)
-    
-    return GraphPair(graph, graph)
-
-def createIfElse(condvar: BoolVar, thenN: GraphPair, elseN: GraphPair) -> GraphPair:
-    """This creates an if then else block."""
-    
-    # Analyze variable reads/writes
-    readSetThen, writeSetThen = analyzeLinear(thenN.start, thenN.end)
-    readSetElse, writeSetElse = analyzeLinear(elseN.start, elseN.end)
-    branch = GraphNodeBranch(condvar)
-    graph = GraphNested(branch)
-    branch.setNext(0, elseN.start)
-    branch.setNext(1, thenN.start)
-    thenN.last.setNext(0, None)
-    elseN.last.setNext(0, None)
-        
-    #Combine variable reads/writes
-    readSetThen.update(readSetElse)
-    writeSetThen.update(writeSetElse)
-    readSetThen.add(condvar)
-
-    #Save variable read/write results
-    graph.setReadVars(readSetThen)
-    graph.setWriteVars(writeSetThen)
-    
-    return GraphPair(graph, graph)
-
 def createRunnable(pair: GraphPair) -> GraphNested:
     """Encapsulates a GraphPair to make it runnable"""
     readSet, writeSet = analyzeLinear(pair.start, pair.end)
     graph = GraphNested(pair.start)
     pair.end.setNext(0, None)
-        
+
     graph.setReadVars(readSet)
     graph.setWriteVars(writeSet)
     return graph
 
 def analyzeLinear(start: GraphNode, end: GraphNode) -> tuple[set, set]:
     """ This function analyzes reads/writes of linear chains"""
-    
+
     node = start
     list = []
     while node != None:
         list.append(node)
         node = node.getNext(0)
-        
+
     readSet = set()
     writeSet = set()
     for i in range(len(list) - 1, -1, -1):
@@ -535,5 +488,5 @@ def analyzeLinear(start: GraphNode, end: GraphNode) -> tuple[set, set]:
         writeSet.update(n.getWriteVars())
         readSet.difference_update(n.getWriteVars())
         readSet.update(n.getReadSet())
-        
+
     return (readSet, writeSet)
