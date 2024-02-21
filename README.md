@@ -2,11 +2,19 @@
 
 AgentGraph is a library for the development of AI applications.
 
-AgentGraph attempts to:
+AgentGraph:
 
-- Aggressively support parallelism.
-- Support nested parallelism.
-- Support memoization for debugging.
+- Supports parallelism with a sequential programming model using a dynamic dataflow based execution model.
+- Supports nested parallelism.
+- Supports memoization for debugging.
+- Supports prompt generation using templates and a prompting language.
+
+## Installation
+
+To install type:
+```
+pip install .
+```
 
 ## Documentation
 
@@ -19,7 +27,7 @@ import agentgraph
 ### Model
 
 AgentGraph uses a model object to access LLMs.   
-To create a model object:
+To create a model object use the following command:
 
 ```
 model = agentgraph.LLMModel(endpoint, apikey, smallModel, largeModel, threshold, api_version, useOpenAI)
@@ -46,18 +54,19 @@ estimated need for a context window to reduce costs.
 
 ### Prompts
 
+To create a prompt object using the specified directory:
+
 ```
 prompts = agentgraph.Prompts(directory)
 ```
 
-Creates a prompt object using the specified directory.
+
+To loads a prompt from the specified filename.  The file should use the
+Jinja templating language syntax.
 
 ```
 prompts.loadPrompt(filename, dictionary)
 ```
-
-Loads a prompt from the specified filename.  The file should use the
-Jinja templating language syntax.
 
 - dictionary - a map of names to either a variable or an object that
   should be used for generating the prompt.  Variables will be
@@ -68,30 +77,31 @@ Jinja templating language syntax.
 There are two ways of creating tools.
 
 (1)
+To create a toolLoader from a specified directory:
 
 ```
 toolLoader = agentgraph.ToolLoader(directory)
 ```
 
-Creates a toolLoader from a specified directory.
-
+To load a tool from the specified filename, and gives it a handler to be invoked when called by LLM (optional):
 
 ```
 toolLoader.loadTool(filename, handler=function)
 ```
 
-loads the tool from the specified filename, and gives it a handler to be invoked when called by LLM (optional).
 
 Tools loaded this way need to adhere to the format specified by [the openai API](https://platform.openai.com/docs/api-reference/chat/create)
 
 
 (2)
+To create a tool from a function. The function and argument descriptions are extracted from the function docstring with the format:
 
 ```
 agentgraph.ToolReflect(function)
 ```
 
-Creates a tool from a function. The function and argument descriptions are extracted from the function docstring with the format:
+Only arguments with descriptions are included as part of the tool:
+
 ```
             FUNC_DESCPITON
             Arguments:
@@ -99,18 +109,20 @@ Creates a tool from a function. The function and argument descriptions are extra
             ARG2 --- ARG2_DESCRIPTION
             ...
 ```
-only arguments with descriptions are included as part of the tool.
+
 
 ### Top-Level Scheduler Creation
+
+To create a schedule to run task.  The argument specifies the default
+model to use.
 
 ```
 scheduler = agentgraph.getRootScheduler(model)
 ```
 
-Creates a schedule to run task.  The argument specifies the default
-model to use.
-
 ### Running Python Tasks
+
+To run a Python task we use:
 
 ```
 scheduler.runPythonAgent(function, pos, kw, out, vmap)
@@ -123,6 +135,8 @@ scheduler.runPythonAgent(function, pos, kw, out, vmap)
 - vmap - VarMap object to provide a set of variable object assignment to be performend before the task is started.
 
 ### Running LLM Tasks
+
+To run a LLM task we use:
 
 ```
 scheduler.runLLMAgent(outVar, msg, conversation, model, callVar, tools, formatFunc, pos, kw, vmap)
@@ -144,25 +158,26 @@ scheduler.runLLMAgent(outVar, msg, conversation, model, callVar, tools, formatFu
 
 ### Auxilary Data Structures
 
+To create a Conversation mutable object.
+
 ```
 conversation = agentgraph.Conversation()
 ```
 
-Create a Conversation mutable object.
 
+To create a variable map, we use:
 
 ```
 varmap = agentgraph.VarMap()
 ```
 
-Creates a variable map.
 
+To get the value of a variable (stalling the parent task until the child task has finished):
 
 ```
 var.getValue()
 ```
 
-Gets the value of a variable.
 
 ### Using VLLM
 
@@ -175,3 +190,10 @@ Setup agentgraph with the appropriate LLMModel object.  For example:
 ```
 model = agentgraph.LLMModel("http://127.0.0.1:8000/v1/", os.getenv("OPENAI_API_KEY"), "meta-llama/Llama-2-7b-chat-hf", "meta-llama/Llama-2-7b-chat-hf", 34000, useOpenAI=True)
 ```
+
+
+### TODO
+
+Talk about vars
+
+Talk about varset
