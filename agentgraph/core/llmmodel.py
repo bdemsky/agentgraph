@@ -2,11 +2,12 @@ import asyncio
 import hashlib
 import agentgraph.config
 import json
+import time
 from pathlib import Path
 from openai import AsyncOpenAI, AsyncAzureOpenAI, APITimeoutError
 
 class LLMModel:
-    def __init__(self, endpoint, apikey, smallModel, largeModel, threshold, api_version="2023-05-15", useOpenAI: bool = False):
+    def __init__(self, endpoint, apikey, smallModel, largeModel, threshold, api_version="2023-05-15", useOpenAI: bool = False, timeout = 600):
         if useOpenAI:
             if endpoint is not None:
                 self.client = AsyncOpenAI(base_url=endpoint,
@@ -17,7 +18,7 @@ class LLMModel:
             self.client = AsyncAzureOpenAI(azure_endpoint=endpoint,
                                            api_version=api_version,
                                            api_key=apikey)
-        self.timeout = 60
+        self.timeout = timeout
         self.smallModel = smallModel
         self.switchThreshold = threshold
         self.largeModel = largeModel
@@ -98,14 +99,19 @@ class LLMModel:
         retries = 0
         while True:
             try:
+                starttime = time.clock_gettime_ns(time.CLOCK_REALTIME)
                 chat_completion = await self.client.chat.completions.create(**request_params, model=model_to_use, timeout=self.timeout)
+                endtime = time.clock_gettime_ns(time.CLOCK_REALTIME)
                 break
             except APITimeoutError as e:
                 retries+=1
                 if retries > 3:
                     raise Exception(f"Exceeded 3 retries")
                 print("Retrying due to failure from openai\n")
-
+        if agentgraph.config.TIMING > 0:
+            difftime = (endtime - starttime) / 1000000000
+            print(f"Time={difftime} Prompt={chat_completion.usage.prompt_tokens} Completion={chat_completion.usage.completion_tokens}")
+            
         response = chat_completion.choices[0].message.model_dump(exclude_unset=True)
         self.writeCache(request_params, response)
         if model_to_use == self.smallModel:
