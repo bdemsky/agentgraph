@@ -6,3 +6,10 @@ class MutVar(Var):
 
     def isMutable(self) -> bool:
         return True
+
+class MutVarFactory:
+    def __init__(self):
+        pass
+
+    def allocator(self) -> MutVar:
+        return MutVar()

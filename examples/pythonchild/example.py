@@ -6,15 +6,13 @@ import time
 def testFunc1(scheduler) -> list:
     prompts = agentgraph.Prompts("./examples/pythonchild/prompts/")
     sys = prompts.loadPrompt("System")
-    ovarA = agentgraph.Var("Recipe")
     pA = prompts.loadPrompt("PromptA")
-    scheduler.runLLMAgent(ovarA, msg = sys ** pA)
+    ovarA = scheduler.runLLMAgent(msg = sys ** pA)
     ovarR = ovarA
     
     for i in range(3):
         pB = prompts.loadPrompt("PromptB", {'Recipe': ovarR})
-        ovarB = agentgraph.Var("Recipe")
-        scheduler.runLLMAgent(ovarB, msg = sys ** pB)
+        ovarB = scheduler.runLLMAgent(msg = sys ** pB)
         ovarR = ovarB
 
     print("Tasks Enqueued")

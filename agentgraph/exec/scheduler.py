@@ -76,7 +76,7 @@ class ScheduleNode:
         
         return self.node
 
-    def addWaiter(self, var: Var, node: 'ScheduleNode'):
+    def addWaiter(self, var: Var, node):
         """Add a schedulenode that is waiting on us for value of the
         variable var."""
         
@@ -299,6 +299,7 @@ class Scheduler:
         self.windowStall = None
         self.startTasks = None
         self.endTasks = None
+        self.lock = threading.Lock()
         self.condVar = threading.Condition()
         self.dummyVar = MutVar("Dummy$$$$$")
 
@@ -349,11 +350,15 @@ class Scheduler:
             self.endTasks.setNext(taskNode)
 
         self.endTasks = taskNode
-        self.checkForMutables(node, varMap)
-        
-        if (self.startTasks == taskNode):
-            self.runTask(taskNode)
+        with self.lock:
+            self._finishAddTask(varMap, node)
 
+    def _finishAddTask(self, varMap: dict, node: GraphNode):
+        self._checkForMutables(node, varMap)
+        
+        if (self.startTasks == self.endTasks):
+            self._runTask(self.endTasks)
+            
     def _checkVarForMutable(self, varMap: dict, writeSet: set, currSchedulerTask: ScheduleNode, v):
         """
         Check whether v is a mutable that we need to revoke ownership
@@ -383,9 +388,9 @@ class Scheduler:
             if mutTask == currSchedulerTask:
                 value.setOwner(dummyTask)
             
-    def checkForMutables(self, node: GraphNode, varMap: dict):
+    def _checkForMutables(self, node: GraphNode, varMap: dict):
         """
-        Handle and references to mutable objects.  If an mutable
+        Handle and references to mutable objects.  If a mutable
         object is owned by the parent task, revoke ownership.
         """
 
@@ -403,21 +408,33 @@ class Scheduler:
             node = node.getNext(0)
 
 
-    def runTask(self, task: TaskNode):
+    def _runTask(self, task: TaskNode):
         """Starts up the first task."""
 
         # Update scheduler variable map with task variable map...
         for var in task.getVarMap():
             value = task.getVarMap()[var]
             self.varMap[var] = value
-        self.engine.runScan(task.getNode(), self)
 
-    def runPythonAgent(self, pythonFunc, pos: list = None, kw: dict = None, out: list = None, vmap: VarMap = None):
+        self.scan(task.getNode())
+
+    def runPythonAgent(self, pythonFunc, pos: list = None, kw: dict = None, outTypes: list = None, vmap: VarMap = None):
+        if outTypes is None:
+            out = None
+        else:
+            out = list()
+            for type in outTypes:
+                out.append(type.allocator())
         self.addTask(createPythonAgent(pythonFunc, pos, kw, out).start, vmap)
-
-    def runLLMAgent(self, outVar: Var, msg: MsgSeq = None, conversation: Var = None, callVar: Var = None, tools: list[Tool] = None, formatFunc = None, pos: list = None, kw: dict = None, model: LLMModel = None, vmap: VarMap = None):
+        if out is not None and len(out) == 1:
+            return out[0]
+        return out
+        
+    def runLLMAgent(self, msg: MsgSeq = None, conversation: Var = None, callVar: Var = None, tools: list[Tool] = None, formatFunc = None, pos: list = None, kw: dict = None, model: LLMModel = None, vmap: VarMap = None):
+        outVar = Var()
         self.addTask(createLLMAgent(outVar, msg, conversation, callVar, tools, formatFunc, pos, kw, model).start, vmap)
-
+        return outVar
+        
     def checkFinishScope(self):
         if self.windowSize == 0:
             self.finishScope()
@@ -610,7 +627,8 @@ class Scheduler:
             scheduleNode.setOutVarMap(writeMap)
         
         if self.parent is not None:
-            self.parent.completed(scheduleNode)
+            with self.parent.lock:
+                self.parent.completed(scheduleNode)
         else:
             print("This should not happen!")
 

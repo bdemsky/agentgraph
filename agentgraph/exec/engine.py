@@ -39,16 +39,22 @@ class Engine:
                 lastscheduler = scheduler
             try:
                 await scheduleNode.run()
-                scheduler.completed(scheduleNode)
+
+                while True:
+                    if scheduler.lock.acquire(blocking=False):
+                        break
+                    # Yield to other tasks
+                    await asyncio.sleep(0)
+                try:
+                    scheduler.completed(scheduleNode)
+                finally:
+                    scheduler.lock.release()
+                    
             except Exception as e:
                 print('Error', e)
                 print(traceback.format_exc())
 
             self.queue.async_q.task_done()
-
-    def runScan(self, graph: GraphNode, scheduler: 'agentgraph.exec.scheduler.Scheduler'):
-        asyncio.run_coroutine_threadsafe(wrap_scan(scheduler, graph), self.loop).result()
-        return
 
     def queueItem(self, node: 'agentgraph.exec.scheduler.ScheduleNode', scheduler):
         self.queue.async_q.put_nowait((node, scheduler))
@@ -66,22 +72,21 @@ class Engine:
         self.event_loop_thread.join()
 
 def threadrun(engine, scheduleNode, scheduler):
+    """
+    Start a new thread to run child task.
+    """
+
     import agentgraph.exec.scheduler
     agentgraph.exec.scheduler.setCurrentTask(scheduleNode)
     agentgraph.exec.scheduler.setCurrentScheduler(scheduler)
     try:
         scheduleNode.threadRun(scheduler)
-        asyncio.run_coroutine_threadsafe(wrap_completed(scheduler, scheduleNode), engine.loop).result()
+        with scheduler.lock:
+            scheduler.completed(scheduleNode)
     except Exception as e:
         print('Error', e)
         print(traceback.format_exc())
 
-async def wrap_completed(scheduler: 'agentgraph.exec.scheduler.Scheduler', scheduleNode):
-    scheduler.completed(scheduleNode)
-        
-async def wrap_scan(scheduler: 'agentgraph.exec.scheduler.Scheduler', graph: GraphNode):
-    scheduler.scan(graph)
-    
 async def create_queue() -> janus.Queue:
     queue = janus.Queue()
     return queue

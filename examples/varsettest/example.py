@@ -20,8 +20,7 @@ var = varmap.mapToInt()
 varset = agentgraph.VarSet()
 
 for i in range(30):
-    nvar = agentgraph.Var()
-    scheduler.runPythonAgent(testFunc1, out = [nvar], pos=[var], vmap = varmap)
+    nvar = scheduler.runPythonAgent(testFunc1, outTypes = [agentgraph.VarType], pos=[var], vmap = varmap)
     varmap = None
     varset.add(nvar)
     var = nvar

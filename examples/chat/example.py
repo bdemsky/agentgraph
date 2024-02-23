@@ -13,13 +13,12 @@ pA = prompts.loadPrompt("PromptA")
 convA = agentgraph.Conversation()
 convB = agentgraph.Conversation()
 varmap = agentgraph.VarMap()
-ovarA = varmap.mapToNone()
 ovarB = varmap.mapToNone()
 
 for i in range(2):
-    scheduler.runLLMAgent(ovarA, conversation = convA, msg = convA > (convA & ovarB | sysA ** pA), vmap = varmap)
+    ovarA = scheduler.runLLMAgent(conversation = convA, msg = convA > (convA & ovarB | sysA ** pA), vmap = varmap)
     varmap = None
-    scheduler.runLLMAgent(ovarB, conversation = convB, msg = convB > (convB & ovarA | sysB ** ovarA))
+    ovarB = scheduler.runLLMAgent(conversation = convB, msg = convB > (convB & ovarA | sysB ** ovarA))
     
 print("Tasks Enqueued")
 print(ovarA.getValue())

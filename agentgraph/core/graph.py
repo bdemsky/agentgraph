@@ -4,7 +4,6 @@ import traceback
 import threading
 from typing import Callable
 
-from agentgraph.core.boolvar import BoolVar
 from agentgraph.core.conversation import Conversation
 from agentgraph.data.filestore import FileStore
 from agentgraph.core.llmmodel import LLMModel
@@ -368,9 +367,6 @@ class VarMap:
     def _getVariable(self, name: str) -> Var:
         return Var(name)
 
-    def _getBoolVariable(self, name: str) -> Var:
-        return BoolVar(name)
-
     def _getMutVariable(self, name: str) -> MutVar:
         return MutVar(name)
         
@@ -396,8 +392,8 @@ class VarMap:
         self._varMap[var] = val
         return var
     
-    def mapToBool(self, name: str = None, val: bool = False) -> BoolVar:
-        var = self._getBoolVariable(name)
+    def mapToBool(self, name: str = None, val: bool = False) -> Var:
+        var = self._getVariable(name)
         self._varMap[var] = val
         return var
 
