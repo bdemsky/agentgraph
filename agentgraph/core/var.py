@@ -37,10 +37,3 @@ class Var(MsgSeq):
         
         from agentgraph.exec.scheduler import getCurrentScheduler
         return getCurrentScheduler().readVariable(self)
-
-class VarFactory:
-    def __init__(self):
-        pass
-
-    def allocator(self) -> Var:
-        return Var()

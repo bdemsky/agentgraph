@@ -9,7 +9,6 @@ from agentgraph.data.filestore import FileStore
 from agentgraph.core.llmmodel import LLMModel
 from agentgraph.core.msgseq import MsgSeq
 from agentgraph.core.mutable import Mutable
-from agentgraph.core.mutvar import MutVar
 from agentgraph.core.reflect import ArgMapFunc
 from agentgraph.core.tools import Tool
 from agentgraph.core.var import Var
@@ -340,26 +339,6 @@ class GraphPair:
     def __or__(a: 'GraphPair', b: 'GraphPair') -> 'GraphPair':
         return createSequence([a, b])
     
-def checkInVars(pos: list, kw: dict):
-    mutSet = set()
-    if kw is not None:
-        for v, var in kw:
-            if isinstance(var, agentgraph.core.var.Var) and var.isMutable():
-                mutSet.add(var)
-    if pos is not None:
-        for var in pos:
-            if isinstance(var, agentgraph.core.var.Var) and var.isMutable():
-                mutSet.add(var)
-    if kw is not None:
-        for v, var in kw:
-            if isinstance(var, agentgraph.core.var.Var) and var.isMutable() and var.isRead() and var.getVar() in mutSet:
-                raise RuntimeError(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
-    if pos is not None:
-        for var in pos:
-            if isinstance(var, agentgraph.core.var.Var) and var.isMutable() and var.isRead() and var.getVar() in mutSet:
-                raise RuntimeError(f"Snapshotted and mutable versions of {var.getVar().getName()} used by same task.")
-
-        
 class VarMap:
     def __init__(self):
         self._varMap = dict()
@@ -367,28 +346,25 @@ class VarMap:
     def _getVariable(self, name: str) -> Var:
         return Var(name)
 
-    def _getMutVariable(self, name: str) -> MutVar:
-        return MutVar(name)
-        
     def getVarMap(self) -> dict:
         return self._varMap
         
-    def mapToConversation(self, name: str = None, val: Conversation = None) -> MutVar:
-        var = self._getMutVariable(name)
+    def mapToConversation(self, name: str = None, val: Conversation = None) -> Var:
+        var = self._getVariable(name)
         if val is None:
             val = Conversation()
         self._varMap[var] = val
         return var
 
-    def mapToFileStore(self, name: str = None, val: FileStore = None) -> MutVar:
-        var = self._getMutVariable(name)
+    def mapToFileStore(self, name: str = None, val: FileStore = None) -> Var:
+        var = self._getVariable(name)
         if val is None:
             val = FileStore()
         self._varMap[var] = val
         return var
 
-    def mapToMutable(self, name: str = None, val: Mutable = None) -> MutVar:
-        var = self._getMutVariable(name)
+    def mapToMutable(self, name: str = None, val: Mutable = None) -> Var:
+        var = self._getVariable(name)
         self._varMap[var] = val
         return var
     
@@ -431,7 +407,6 @@ def createLLMAgent(outVar: Var, msg: MsgSeq = None, conversation: Var = None, ca
     assert msg is not None or formatFunc is not None, "Either msg or formatFunc must be specified."
     assert msg is None or formatFunc is None, "Cannot specify both msg and formatFunc."
 
-    checkInVars(pos, kw)
     llmAgent = GraphLLMAgent(outVar, conversation, model, msg, formatFunc, callVar, tools, pos, kw)
     return GraphPair(llmAgent, llmAgent)
 
@@ -444,7 +419,6 @@ def createPythonAgent(pythonFunc, pos: list = None, kw: dict = None, out: list =
     out --- a dict mapping from names to Vars for the output of the pythonFunc Python function.  (default None)
     """
 
-    checkInVars(pos, kw)
     pythonAgent = GraphPythonAgent(pythonFunc, pos, kw, out)
     return GraphPair(pythonAgent, pythonAgent)
 

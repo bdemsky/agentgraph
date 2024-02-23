@@ -7,7 +7,6 @@ import time
 
 from agentgraph.exec.engine import Engine
 from agentgraph.core.graph import VarMap, GraphNested, GraphNode, GraphPythonAgent, GraphVarWait, createPythonAgent, createLLMAgent
-from agentgraph.core.mutvar import MutVar
 from agentgraph.core.var import Var
 from agentgraph.core.varset import VarSet
 from agentgraph.core.msgseq import MsgSeq
@@ -301,7 +300,7 @@ class Scheduler:
         self.endTasks = None
         self.lock = threading.Lock()
         self.condVar = threading.Condition()
-        self.dummyVar = MutVar("Dummy$$$$$")
+        self.dummyVar = Var("Dummy$$$$$")
 
     def getDefaultModel(self) -> LLMModel:
         return self.model
@@ -418,15 +417,14 @@ class Scheduler:
 
         self.scan(task.getNode())
 
-    def runPythonAgent(self, pythonFunc, pos: list = None, kw: dict = None, outTypes: list = None, vmap: VarMap = None):
-        if outTypes is None:
-            out = None
-        else:
+    def runPythonAgent(self, pythonFunc, pos: list = None, kw: dict = None, numOuts: int = 0, vmap: VarMap = None):
+        out = None
+        if numOuts > 0:
             out = list()
-            for type in outTypes:
-                out.append(type.allocator())
+            for v in range(numOuts):
+                out.append(agentgraph.Var())
         self.addTask(createPythonAgent(pythonFunc, pos, kw, out).start, vmap)
-        if out is not None and len(out) == 1:
+        if numOuts == 1:
             return out[0]
         return out
         
@@ -462,7 +460,7 @@ class Scheduler:
         else:
             # We have the value
             scheduleNode.setInVarVal(var, lookup)
-            if var.isMutable():
+            if isinstance(lookup, agentgraph.core.mutable.Mutable):
                 # If the variable is mutable, add ourselves.
                 try:
                     depCount += self.handleReference(scheduleNode, var, lookup)
@@ -563,7 +561,7 @@ class Scheduler:
             for n in wlist:
                 #Forward value
                 n.setInVarVal(var, val)
-                if var.isMutable():
+                if isinstance(val, agentgraph.core.mutable.Mutable):
                     #If variable is mutable, register the heap dependence
                     if self.handleReference(n, var, val) == 0:
                         #Only do decrement if we didn't just transfer the count to a heap dependence

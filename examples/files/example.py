@@ -15,8 +15,8 @@ model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.gete
 scheduler = agentgraph.getRootScheduler(model)
 fs = agentgraph.FileStore()
 fs["a"]="0"
-vara = scheduler.runPythonAgent(testFunc1, pos=[fs], outTypes = [agentgraph.VarType])
-varb = scheduler.runPythonAgent(testFunc2, pos=[fs], outTypes = [agentgraph.VarType])
+vara = scheduler.runPythonAgent(testFunc1, pos=[fs], numOuts = 1)
+varb = scheduler.runPythonAgent(testFunc2, pos=[fs], numOuts = 1)
 
 print(fs["a"])
 print(vara.getValue())

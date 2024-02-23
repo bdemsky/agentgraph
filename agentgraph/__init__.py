@@ -4,9 +4,8 @@ from agentgraph.core.conversation import Conversation
 from agentgraph.core.prompts import Prompts
 from agentgraph.core.tools import ToolLoader, ToolReflect
 from agentgraph.core.reflect import withArgMap
-from agentgraph.core.var import VarFactory, Var
+from agentgraph.core.var import Var
 from agentgraph.core.varset import VarSet
-from agentgraph.core.mutvar import MutVarFactory, MutVar
 from agentgraph.data.filestore import FileStore
 
 def getRootScheduler(model, eng: 'agentgraph.exec.engine.Engine' = None):
@@ -23,5 +22,3 @@ def getRootScheduler(model, eng: 'agentgraph.exec.engine.Engine' = None):
     setCurrentScheduler(scheduler)
     return scheduler
 
-VarType = VarFactory()
-MutVarType = MutVarFactory()
