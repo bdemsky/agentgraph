@@ -8,6 +8,7 @@ import time
 from agentgraph.exec.engine import Engine
 from agentgraph.core.graph import VarMap, GraphNested, GraphNode, GraphPythonAgent, GraphVarWait, createPythonAgent, createLLMAgent
 from agentgraph.core.var import Var
+from agentgraph.core.vardict import VarDict
 from agentgraph.core.varset import VarSet
 from agentgraph.core.msgseq import MsgSeq
 from agentgraph.core.tools import Tool
@@ -323,7 +324,7 @@ class Scheduler:
         """
         
         gvar = GraphVarWait([var], self.condVar)
-        self.addTask(gvar, None, dict())
+        self.addTask(gvar)
         #Wait for our task to finish
         with self.condVar:
             while not gvar.isDone():
@@ -397,7 +398,10 @@ class Scheduler:
         currSchedulerTask = getCurrentTask()
         while node is not None:
             for var in node.getReadSet():
-                if isinstance(var, VarSet):
+                if isinstance(var, VarDict):
+                    for v in var.values():
+                        self._checkVarForMutable(varMap, writeSet, currSchedulerTask, v)
+                elif isinstance(var, VarSet):
                     for v in var:
                         self._checkVarForMutable(varMap, writeSet, currSchedulerTask, v)
                 else:
@@ -484,7 +488,10 @@ class Scheduler:
 
             # Compute our set of dependencies
             for var in inVars:
-                if isinstance(var, VarSet):
+                if isinstance(var, VarDict):
+                    for v in var.values():
+                        depCount = self._scanNodeVar(node, scheduleNode, v, depCount)
+                elif isinstance(var, VarSet):
                     for v in var:
                         depCount = self._scanNodeVar(node, scheduleNode, v, depCount)
                 else:

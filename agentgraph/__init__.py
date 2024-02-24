@@ -6,6 +6,7 @@ from agentgraph.core.tools import ToolLoader, ToolReflect
 from agentgraph.core.reflect import withArgMap
 from agentgraph.core.var import Var
 from agentgraph.core.varset import VarSet
+from agentgraph.core.vardict import VarDict
 from agentgraph.data.filestore import FileStore
 
 def getRootScheduler(model, eng: 'agentgraph.exec.engine.Engine' = None):

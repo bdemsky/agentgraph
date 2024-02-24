@@ -282,7 +282,16 @@ class GraphPythonAgent(GraphNested):
         # Build positional variables
         posList = list()
         for o in self.pos:
-            if isinstance(o, agentgraph.core.varset.VarSet):
+            if isinstance(o, agentgraph.core.vardict.VarDict):
+                news = dict()
+                for key, value in o.items():
+                    if isinstance(value, agentgraph.core.var.Var):
+                        news[key] = varMap[value]
+                    else:
+                        news[key] = value
+
+                posList.append(news)
+            elif isinstance(o, agentgraph.core.varset.VarSet):
                 news = set()
                 for v in o:
                     if isinstance(v, agentgraph.core.var.Var):
@@ -301,7 +310,16 @@ class GraphPythonAgent(GraphNested):
         
         inMap = dict()
         for name, o in self.kw:
-            if isinstance(o, agentgraph.core.varset.VarSet):
+            if isinstance(o, agentgraph.core.vardict.VarDict):
+                news = dict()
+                for key, value in o.items():
+                    if isinstance(value, agentgraph.core.var.Var):
+                        news[key] = varMap[value]
+                    else:
+                        news[key] = value
+
+                inMap[name] = news
+            elif isinstance(o, agentgraph.core.varset.VarSet):
                 news = set()
                 for v in o:
                     if isinstance(v, agentgraph.core.var.Var):
