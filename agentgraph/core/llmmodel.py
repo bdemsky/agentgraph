@@ -2,12 +2,75 @@ import asyncio
 import hashlib
 import agentgraph.config
 import json
+import tiktoken
 import time
 from pathlib import Path
 from openai import AsyncOpenAI, AsyncAzureOpenAI, APITimeoutError
 
+class ResponseObj:
+    def __init__(self):
+        self.content = None
+        self.function_call = None
+        self.role = None
+        self.tool_calls = None
+        self.finish_reason = None
+
+    def merge_new(self, new):
+        delta = new.delta
+        if delta.content is not None:
+            if self.content is None:
+                self.content = delta.content
+            else:
+                self.content += delta.content
+
+        if delta.function_call is not None:
+            if self.function_call is None:
+                self.function_call = delta.function_call
+            else:
+                self.function_call += delta.function_call
+
+        if delta.role is not None:
+            if self.role is None:
+                self.role = delta.role
+            else:
+                self.role += delta.role
+
+        if delta.tool_calls is not None:
+            if self.tool_calls is None:
+                self.tool_calls = delta.tool_calls
+            else:
+                self.tool_calls += delta.tool_calls
+
+        if new.finish_reason is not None:
+            if self.finish_reason is None:
+                self.finish_reason = new.finish_reason
+            else:
+                self.finish_reason += new.finish_reason
+
+    def to_dict(self) -> dict:
+        mapping = {}
+        if self.role is not None:
+            mapping["role"] = self.role
+
+        if self.content is not None:
+            mapping["content"] = self.content
+
+        if self.tool_calls is not None:
+            mapping["tool_calls"] = self.tool_calls
+
+        if self.finish_reason is not None:
+            mapping["finish_reason"] = self.finish_reason
+
+        if self.function_call is not None:
+            mapping["function_call"] = self.function_call
+
+        return mapping
+
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
+
 class LLMModel:
-    def __init__(self, endpoint, apikey, smallModel, largeModel, threshold, api_version="2023-05-15", useOpenAI: bool = False, timeout = 600):
+    def __init__(self, endpoint, apikey, smallModel, largeModel, threshold, api_version="2023-05-15", useOpenAI: bool = False, timeout: float = 600, tokenizer_str: str = "gpt-4-0613", stream: bool = False):
         if useOpenAI:
             if endpoint is not None:
                 self.client = AsyncOpenAI(base_url=endpoint,
@@ -26,9 +89,12 @@ class LLMModel:
         self.lcompletion_tokens = 0
         self.sprompt_tokens = 0
         self.scompletion_tokens = 0
-        
+        self.tokenizer_str = tokenizer_str
+        self.response_id = 0
+        self.stream = stream
+
     async def lookupCache(self, message_to_send) -> str:
-        if agentgraph.config is None:
+        if agentgraph.config.DEBUG_PATH is None:
             return None
         encoded = json.dumps(message_to_send)
         hash = hashMessage(encoded)
@@ -47,7 +113,7 @@ class LLMModel:
         return None
     
     def writeCache(self, message_to_send, response):
-        if agentgraph.config is None:
+        if agentgraph.config.DEBUG_PATH is None:
             return
         encoded = json.dumps(message_to_send)
         hash = hashMessage(encoded)
@@ -74,7 +140,51 @@ class LLMModel:
         tmpval.write_text(json.dumps(response))
         tmpval.rename(val_path)
         tmpkey.rename(path)
-                
+
+    def num_tokens_from_messages(self, messages, model):
+        """Return the number of tokens used by a list of messages."""
+
+        if model is None:
+            return 0
+
+        try:
+            encoding = tiktoken.encoding_for_model(model)
+        except KeyError:
+            print("Warning: model not found. Using cl100k_base encoding.")
+            encoding = tiktoken.get_encoding("cl100k_base")
+        if model in {
+            "gpt-3.5-turbo-0613",
+            "gpt-3.5-turbo-16k-0613",
+            "gpt-4-0314",
+            "gpt-4-32k-0314",
+            "gpt-4-0613",
+            "gpt-4-32k-0613",
+            }:
+            tokens_per_message = 3
+            tokens_per_name = 1
+        elif model == "gpt-3.5-turbo-0301":
+            tokens_per_message = 4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
+            tokens_per_name = -1  # if there's a name, the role is omitted
+        elif "gpt-3.5-turbo" in model:
+            print("Warning: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613.")
+            return self.num_tokens_from_messages(messages, model="gpt-3.5-turbo-0613")
+        elif "gpt-4" in model:
+            print("Warning: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613.")
+            return self.num_tokens_from_messages(messages, model="gpt-4-0613")
+        else:
+            raise NotImplementedError(
+                f"""num_tokens_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens."""
+            )
+        num_tokens = 0
+        for message in messages:
+            num_tokens += tokens_per_message
+            for key, value in message.items():
+                num_tokens += len(encoding.encode(value))
+                if key == "name":
+                    num_tokens += tokens_per_name
+                    num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
+        return num_tokens
+
     async def sendData(self, message_to_send, tools) -> str:
         request_params = {"messages": message_to_send}
         if tools:
@@ -95,12 +205,28 @@ class LLMModel:
             model_to_use = self.largeModel
         else:
             model_to_use = self.smallModel
+
+        my_response_id = self.response_id
+        self.response_id = my_response_id + 1
+
+        prompt_tokens = self.num_tokens_from_messages(message_to_send, self.tokenizer_str)
             
         retries = 0
         while True:
             try:
-                starttime = time.clock_gettime_ns(time.CLOCK_REALTIME)
-                chat_completion = await self.client.chat.completions.create(**request_params, model=model_to_use, timeout=self.timeout)
+                start_time = time.clock_gettime_ns(time.CLOCK_REALTIME)
+                chat_completion = await self.client.chat.completions.create(**request_params, model=model_to_use, timeout=self.timeout, stream=self.stream)
+                responseobj = ResponseObj()
+                count = 0
+                if self.stream:
+                    async for chunk in chat_completion:
+                        chunk_time = (time.clock_gettime_ns(time.CLOCK_REALTIME) - start_time) / 1000000000
+                        chunk_str = chunk.choices[0].delta.content
+                        responseobj.merge_new(chunk.choices[0])
+                        count += 1
+                        # print(f"Message {count} {chunk_str} received at time:{chunk_time:.2f}")
+                        print(f"{my_response_id}, {count}, {chunk_time:.2f}")
+
                 endtime = time.clock_gettime_ns(time.CLOCK_REALTIME)
                 break
             except APITimeoutError as e:
@@ -108,18 +234,27 @@ class LLMModel:
                 if retries > 3:
                     raise Exception(f"Exceeded 3 retries")
                 print("Retrying due to failure from openai\n")
-        if agentgraph.config.TIMING > 0:
-            difftime = (endtime - starttime) / 1000000000
-            print(f"Time={difftime} Prompt={chat_completion.usage.prompt_tokens} Completion={chat_completion.usage.completion_tokens}")
             
-        response = chat_completion.choices[0].message.model_dump(exclude_unset=True)
+        completion_tokens = self.num_tokens_from_messages([responseobj.to_dict()], self.tokenizer_str)
+
+        if self.stream:
+            response = responseobj.to_dict()
+        else:
+            response = chat_completion.choices[0].message.model_dump(exclude_unset=True)
+            completion_tokens = chat_completion.usage.completion_tokens
+            prompt_tokens = chat_completion.usage.prompt_tokens
+
+        if agentgraph.config.TIMING > 0:
+            difftime = (endtime - start_time) / 1000000000
+            print(f"Response={my_response_id} Time={difftime} Prompt={prompt_tokens} Completion={completion_tokens}")
+
         self.writeCache(request_params, response)
         if model_to_use == self.smallModel:
-            self.scompletion_tokens += chat_completion.usage.completion_tokens
-            self.sprompt_tokens += chat_completion.usage.prompt_tokens
+            self.scompletion_tokens += completion_tokens
+            self.sprompt_tokens += prompt_tokens
         else:
-            self.lcompletion_tokens += chat_completion.usage.completion_tokens
-            self.lprompt_tokens += chat_completion.usage.prompt_tokens
+            self.lcompletion_tokens += completion_tokens
+            self.lprompt_tokens += prompt_tokens
         return response
 
     def print_statistics(self):

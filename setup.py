@@ -19,5 +19,5 @@ setuptools.setup(
     long_description=read_readme(),
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(exclude=("examples")),
-    install_requires=['asyncio','openai','jinja2','janus'],
+    install_requires=['asyncio','openai','jinja2','janus','tiktoken'],
 )
