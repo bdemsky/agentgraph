@@ -12,6 +12,8 @@ from agentgraph.core.mutable import Mutable
 from agentgraph.core.reflect import ArgMapFunc
 from agentgraph.core.tools import Tool
 from agentgraph.core.var import Var
+from agentgraph.core.vardict import VarDict
+from agentgraph.core.varset import VarSet
 import agentgraph.config
 
 class GraphNode:
@@ -338,15 +340,34 @@ class GraphPythonAgent(GraphNested):
 
         # Construct outMap (Var -> Object) from outVars (name -> Var)
         # and omap (name -> Value)
-        
         outMap = dict()
         index = 0
         for var in self.out:
-                outMap[var] = retval[index]
-                index += 1
+            val = retval[index]
+            if isinstance(val, Var):
+                newval = scheduler.readVariable(val)
+            elif isinstance(val, VarSet):
+                newval = set()
+                for v in val:
+                    if isinstance(v, Var):
+                        newval.add(scheduler.readVariable(v))
+                    else:
+                        newval.add(v)
+            elif isinstance(val, VarDict):
+                newval = dict()
+                for k, v in val:
+                    if isinstance(v, Var):
+                        newval[k] = scheduler.readVariable(v)
+                    else:
+                        newval[k] = v
+            else:
+                newval = val
+
+            outMap[var] = newval
+            index += 1
 
         return outMap
-    
+
 class GraphPair:
     """Stores the beginning and end node of a sub graph"""
     
