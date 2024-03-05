@@ -71,8 +71,8 @@ store = FileStore()
 read_from_fs(store, testdir_path)
 fileStore = varmap.mapToFileStore("FileStore", store)
 
-sysA = prompts.loadPrompt("SystemA", {fileStore, ovarTest})
-pA = prompts.loadPrompt("PromptA")
+sysA = prompts.loadPrompt("SystemA")
+pA = prompts.loadPrompt("PromptA", {fileStore, ovarTest})
 pFix = prompts.loadPrompt("PromptFix")
 
 agentA = agentgraph.createPythonAgent(run_test, pos=[fileStore], out=[ovarTest])

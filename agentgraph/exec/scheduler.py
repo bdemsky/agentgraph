@@ -33,30 +33,35 @@ def setCurrentScheduler(scheduler):
 class ScheduleNode:
     """Schedule node to track dependences for a task instance."""
     
-    def __init__(self, node: GraphNode):
+    def __init__(self, node: GraphNode, id: int):
         self.node = node
         self.waitMap = dict()
         self.inVarMap = dict()
         self.depCount = 0
         self.refs = set()
+        self.id = id
         
     def addRef(self, ref) -> bool:
         """Keeps track of the heap references this task will use.  If
         we see the same reference multiple times, return false for the
         duplicates"""
         
-        if ref in self.refs:
+        root = ref.getRootObject()
+        if root in self.refs:
             return False
-        self.refs.add(ref)
+        self.refs.add(root)
         return True
 
     def getRefs(self) -> set:
         return self.refs
-    
+   
+    def getId(self) -> int:
+        return self.id
+
     def assertOwnership(self):
         for ref in self.refs:
             if isinstance(ref, agentgraph.core.mutable.Mutable):
-                ref.setOwner(self)
+                ref.setOwningTask(self)
                 
     def setDepCount(self, depCount: int):
         """Sets Dependency count"""
@@ -125,7 +130,7 @@ class ScheduleNode:
         """Run the node"""
         self.outVarMap = self.node.execute(scheduler, self.getInVarMap())
 
-dummyTask = ScheduleNode(None)
+dummyTask = ScheduleNode(None, 0)
             
 class ScoreBoardNode:
     """ScoreBoard linked list node to track heap dependences."""
@@ -138,6 +143,10 @@ class ScoreBoardNode:
         self.isReader = isReader
         self.waiters = set()
         self.next = None
+        self.idRange = None
+
+    def getIdRange(self) -> tuple[int, int]:
+        return self.idRange
 
     def getIsReader(self) -> bool:
         """Returns true if the node in question is for readers."""
@@ -156,7 +165,11 @@ class ScoreBoardNode:
         
     def addWaiter(self, waiter: ScheduleNode):
         """Adds a waiter to this scoreboard node."""
-        
+
+        if self.idRange is None:
+            self.idRange = waiter.id, waiter.id
+        else:
+            self.idRange = min(self.idRange[0], waiter.id), max(self.idRange[1], waiter.id)
         self.waiters.add(waiter)
 
     def getWaiters(self) -> list:
@@ -165,21 +178,61 @@ class ScoreBoardNode:
         
         return self.waiters
 
+    @staticmethod
+    def merge(this: 'ScoreBoardNode', that: 'ScoreBoardNode') -> tuple['ScoreBoardNode', 'ScoreBoardNode']:
+        """merge two nodes with overlapping id ranges. """
+
+        if this.idRange[1] < that.idRange[0] or that.idRange[1] < this.idRange[0]:
+            print("BAD")
+            return
+
+        if this.isReader and that.isReader:
+            node = ScoreBoardNode(True)
+            node.waiters = this.waiters | other.waiters
+            node.idRange = min(this.idRange[0], that.idRange[0]), max(this.idRange[1], that.idRange[1])
+            return node, node
+
+        writer = ScoreBoardNode(False)
+        if this.isReader:
+            reader = this
+            writer.waiters = that.waiters
+            writer.idRange = that.idRange
+        else:
+            writer.waiters = this.waiters
+            writer.idRange = this.idRange
+            if that.isReader:
+                reader = that
+            else:
+                return writer, writer
+
+        # writer node should have a single id for id range
+        writer_id = writer.idRange[0]
+        before_write, after_write = ScoreBoardNode(True), ScoreBoardNode(True)
+        for waiter in reader.waiters:
+            if waiter.getId() < writer_id:
+                before_write.addWaiter(waiter)
+            elif waiter.getId() > writer_id:
+                after_write.addWaiter(waiter)
+
+        before_write.setNext(writer)
+        writer.setNext(after_write)
+        return before_write, after_write
 
 class ScoreBoard:
     """ScoreBoard object to track object dependencies between agents."""
     
     def __init__(self):
         self.accesses = dict()
-        
+
     def addReader(self, object, node: ScheduleNode) -> bool:
         """Add task node with read dependence on object.  Returns True
         if there is no conflict blocking execution."""
 
-        if object in self.accesses:
+        root = object.getRootObject()
+        if root in self.accesses:
             # We have a list of waiters.
 
-            start, end = self.accesses[object]
+            start, end = self.accesses[root]
         else:
             # If we are at the beginning, we can just return true and
             # do the snapshot.
@@ -194,7 +247,7 @@ class ScoreBoard:
             scoreboardnode.addWaiter(node)
             end.setNext(scoreboardnode)
             end = scoreboardnode
-            self.accesses[object] = (start, end)
+            self.accesses[root] = (start, end)
         else:
             # We already have a reader node at the end, so just add
             # ourselves to it.
@@ -211,15 +264,16 @@ class ScoreBoard:
         scoreboardnode = ScoreBoardNode(False)
         scoreboardnode.addWaiter(node)
         
-        if object in self.accesses:
+        root = object.getRootObject()
+        if root in self.accesses:
             # Already have a linked list, so add ourselves to it.
-            start, end = self.accesses[object]
+            start, end = self.accesses[root]
             end.setNext(scoreboardnode)
-            self.accesses[object] = (start, scoreboardnode)
+            self.accesses[root] = (start, scoreboardnode)
             return False
         else:
             # We are the first node.
-            self.accesses[object] = (scoreboardnode, scoreboardnode)
+            self.accesses[root] = (scoreboardnode, scoreboardnode)
             return True
 
 
@@ -227,15 +281,15 @@ class ScoreBoard:
         """Removes a waiting schedulenode from the list.  Returns
         false if that node had already cleared this queue and true if
         it was still waiting."""
-
-        first, last = self.accesses[object]
+        root = object.getRootObject()
+        first, last = self.accesses[root]
         if node in first.getWaiters():
             first.getWaiters().remove(node)
             if len(first.getWaiters()) == 0:
                 if first == last:
-                    del self.accesses[object]
+                    del self.accesses[root]
                 else:
-                    self.accesses[object] = (first.getNext(), last)
+                    self.accesses[root] = (first.getNext(), last)
                     #Update scheduler
                     for nextnode in first.getNext().getWaiters():
                         scheduler.decDepCount(nextnode)
@@ -250,11 +304,66 @@ class ScoreBoard:
                         prev.setNext(entry.getNext())
                         #See if we eliminated tail and thus need to update queue
                         if last == entry:
-                            self.accesses[object] = (first, prev)
+                            self.accesses[root] = (first, prev)
                     break
                 prev = entry
                 entry = entry.getNext()
         return True
+
+    def mergeAccessQueues(self, source, dest):
+        """
+        merge the accesse queue of source to that of dest according to schedule node ids
+        """
+
+        if source not in self.accesses:
+            return
+
+        if dest not in self.accesses:
+            self.accesses[dest] = self.accesses[source]
+            del self.accesses[source]
+            return  
+
+        srcNode, srcLast = self.accesses[source]
+        dstNode, dstLast = self.accesses[dest]
+
+        if srcNode.getIdRange()[1] < dstNode.getIdRange()[0]:
+            first = curNode = srcNode
+            srcNode = srcNode.getNext()
+        elif dstNode.getIdRange()[1] < srcNode.getIdRange()[0]:
+            first = curNode = dstNode
+            dstNode = dstNode.getNext()
+        else:
+            first, curNode = ScoreBoardNode.merge(srcNode, dstNode)
+            srcNode = srcNode.getNext()
+            dstNode = dstNode.getNext()
+
+        while srcNode != None and dstNode != None:
+            if srcNode.getIdRange()[1] < dstNode.getIdRange()[0]:
+                curNode.setNext(srcNode)
+                curNode = srcNode
+                srcNode = srcNode.getNext()
+            elif dstNode.getIdRange()[1] < srcNode.getIdRange()[0]:
+                curNode.setNext(dstNode)
+                curNode = dstNode
+                dstNode = dstNode.getNext()
+            else:
+                start, end = ScoreBoardNode.merge(srcNode, dstNode)
+                curNode.setNext(start)
+                curNode = end
+                srcNode = srcNode.getNext()
+                dstNode = dstNode.getNext()
+        
+        if srcNode != None:
+            curNode.setNext(srcNode)
+            last = srcLast
+        elif dstNode != None:
+            curNode.setNext(dstNode)
+            last = dstLast
+        else:
+            last = curNode
+
+        self.accesses[dest] = first, last
+        del self.accesses[source]
 
 class TaskNode:
     def __init__(self, node: GraphNode, varMap: dict):
@@ -302,9 +411,25 @@ class Scheduler:
         self.lock = threading.Lock()
         self.condVar = threading.Condition()
         self.dummyVar = Var("Dummy$$$$$")
+        self.nextId = 1
+
+    def _getNewId(self) -> int:
+        id = self.nextId
+        self.nextId += 1
+        return id
 
     def getDefaultModel(self) -> LLMModel:
         return self.model
+        
+    def mergeObjAccesses(self, source, dest):
+        """
+        merge accesses from object source in current and all parent schedulers
+        """
+        scheduler = self
+        while scheduler != None:
+            with scheduler.lock:
+                scheduler.scoreboard.mergeAccessQueues(source, dest)
+            scheduler = scheduler.parent
         
     def objAccess(self, mutable):
         """
@@ -312,7 +437,7 @@ class Scheduler:
         """
         gvar = GraphVarWait([self.dummyVar], self.condVar)
         varDict = dict()
-        varDict[self.dummyVar] = mutable
+        varDict[self.dummyVar] = mutable.getRootObject()
         self.addTask(gvar, None, varDict)
         with self.condVar:
             while not gvar.isDone():
@@ -379,14 +504,14 @@ class Scheduler:
             return
         
         if isinstance(value, agentgraph.core.mutable.Mutable):
-            mutTask = value.getOwner()
+            mutTask = value.getOwningTask()
             # See if parent owns this Mutable.  If so, we know
             # there will be no race when we revoke ownership
             # by setting the owner to dummyTask.  If the
             # parent doesn't own the Mutable, it won't be
             # racing with children, and so we have no problem.
             if mutTask == currSchedulerTask:
-                value.setOwner(dummyTask)
+                value.setOwningTask(dummyTask)
             
     def _checkForMutables(self, node: GraphNode, varMap: dict):
         """
@@ -484,7 +609,7 @@ class Scheduler:
             inVars = node.getReadSet()
             outVars = node.getWriteVars()
 
-            scheduleNode = ScheduleNode(node)
+            scheduleNode = ScheduleNode(node, self._getNewId())
 
             # Compute our set of dependencies
             for var in inVars:

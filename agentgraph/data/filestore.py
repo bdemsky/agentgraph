@@ -28,8 +28,8 @@ class ReadFileStore:
         
         
 class FileStore(Mutable):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, owner = None):
+        super().__init__(owner)
         self.filestore = dict()
 
     def _snapshot(self):

@@ -9,8 +9,9 @@ class ConversationReader:
 
           
 class Conversation(Mutable, MsgSeq):
-    def __init__(self, system = None, prompt = None):
-        super().__init__()
+    def __init__(self, system = None, prompt = None, owner = None):
+        super().__init__(owner)
+        super(Mutable, self).__init__()
         self._system = system
         self._recv = []
         self._sent = []

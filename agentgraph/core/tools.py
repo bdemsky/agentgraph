@@ -1,22 +1,37 @@
 from agentgraph.core.jinjamanager import JinjaManager
+from agentgraph.core.mutable import Mutable
+from agentgraph.core.prompts import Prompt
 from agentgraph.core.reflect import funcToToolSig, ArgMapFunc
+from agentgraph.core.var import Var
 from dataclasses import dataclass
 import json
 from typing import Callable, Union
-
-
+    
 class Tool:
-    def __init__(self):
+    def __init__(self, handler: Callable):
+        self.handler = handler
+        self.readset = set()
+        self.refs = set()
+        if isinstance(self.handler, ArgMapFunc):
+            for val in self.handler.argMap.values():
+                if isinstance(val, Var):
+                    if val.isMutable():
+                        raise RuntimeError("tool cannot depend on mutvars")
+                    self.readset.add(val)
+                elif isinstance(val, Mutable):
+                    self.refs.add(val)
+
+    def exec(self, varsMap: dict) -> dict:
         pass
 
-    def exec(self, varsMap: dict) -> list[dict]:
-        pass
+    def getReadSet(self) -> set:
+        return self.readset
 
-    def getVars(self) -> set:
-        return set()
+    def getRefs(self) -> set:
+        return self.refs
 
     def getHandler(self) -> callable:
-        return None
+        return self.handler
 
 class ToolReflect(Tool):
     def __init__(self, func: Callable, createHandler: bool = True):
@@ -29,48 +44,27 @@ class ToolReflect(Tool):
             ...
         only arguments with descriptions are included in the request to LLM.
         """
-        super().__init__()
-        self.vars = set()
-        if type(func) is ArgMapFunc:
-            self.vars.update(list(func.argMap.values()))
+        handler = func if createHandler else None
+        super().__init__(handler)
         self.toolSig: dict = funcToToolSig(func)
-        self.handler = func if createHandler else None
 
     def exec(self, varsMap: dict) -> dict:
         return self.toolSig
 
-    def getHandler(self) -> dict:
-        return self.handler    
-
-    def getVars(self) -> set:
-        return self.vars
-
-class ToolTemplate(Tool):
-    def __init__(self, toolloader: 'ToolLoader', name: str, handler: Callable, vars: set):
-        super().__init__()
-        self.toolloader = toolloader
-        self.name = name
-        self.vars = vars
-        if type(handler) is ArgMapFunc:
-            self.vars.update(list(handler.argMap.values()))
-        self.handler = handler
+class ToolPrompt(Tool):
+    def __init__(self, prompt: Prompt, handler: Callable):
+        super().__init__(handler)
+        self.prompt = prompt
 
     def exec(self, varsMap: dict) -> dict:
         """Compute value of tool signature at runtime"""
-        data = dict()
-        for var in varsMap:
-            value = varsMap[var]
-            data[var.getName()] = value
-        val = self.toolloader.runTemplate(self.name, data)
+        val = self.prompt.exec(varsMap)
         toolSig = json.loads(val)
         validateToolSig(toolSig)
         return toolSig
 
-    def getVars(self) -> set:
-        return self.vars
-
-    def getHandler(self) -> dict:
-        return self.handler
+    def getReadSet(self) -> set:
+        return super().getReadSet().union(self.prompt.getReadSet())
 
 def validateToolSig(tool):
     assert type(tool) is dict, "tool must be a dictionary"
@@ -78,9 +72,35 @@ def validateToolSig(tool):
     assert tool["type"] == "function", "currently only function is supported in tools"
     assert "function" in tool, "missing function in tool"
 
-class ToolLoader(JinjaManager):
-    def loadTool(self, tool_name: str, handler: Callable = None, vars: set = set()) -> ToolTemplate:
-        """
-        handlers should be a dictionary that maps the name of each tool to a callable that handles the tool call. 
-        """
-        return ToolTemplate(self, tool_name, handler, vars)  
+class ToolList(Mutable):
+    def __init__(self, tools: list[Tool] = [], owner = None):
+        super().__init__(owner)
+        for tool in tools:
+            self.takeToolOwnership(tool)
+        self.tools = tools
+       
+    def takeToolOwnership(self, tool):
+        for ref in tool.getRefs():
+            ref.setOwningObject(self) 
+
+    def exec(self, varsMap: dict) -> tuple[list[dict], dict[str, Callable]]:
+        toolsParam = []
+        handlers = {}
+        for tool in self.tools:
+            toolSig = tool.exec(varsMap)
+            toolsParam.append(toolSig)
+            handlers[toolSig["function"]["name"]] = tool.getHandler() 
+        return toolsParam, handlers
+
+    def getReadSet(self) -> set:
+        return set.union(*[tool.getReadSet() for tool in self.tools])
+
+    def append(self, tool: Tool):
+        self.takeToolOwnership(tool)
+        self.tools.append(tool)
+
+def toolsFromFunctions(funcs: list[Callable]):
+    return ToolList(list(map(ToolReflect, funcs)))
+
+def toolsFromPrompts(loader: 'Prompts', PromptMap: dict):
+    return ToolList([ToolPrompt(loader.loadPrompt(k), handler=v) for k, v in PromptMap.items()])

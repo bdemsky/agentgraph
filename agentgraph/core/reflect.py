@@ -10,8 +10,8 @@ class ArgMapFunc:
         # copy over function attributes
         wraps(func)(self)
 
-    def __call__(self, **kwargs):
-        return self.func(**kwargs)
+    def __call__(self, *args, **kwargs):
+        return self.func(*args, **kwargs)
 
 def withArgMap(argMap = {}):
     """declare a function with dependencies on agentgraph variables"""

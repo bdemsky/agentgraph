@@ -30,9 +30,7 @@ cur_dir = os.path.dirname(os.path.abspath(__file__))
 prompts = agentgraph.Prompts(cur_dir + "/prompts/")
 testdir_path = cur_dir + "/testdirectory/"
 
-ovarFix = agentgraph.Var("OutCall")
-ovarA, ovarA2 = agentgraph.Var("OutA"), agentgraph.Var("OutA2")
-callA, callA2 = agentgraph.Var("CallA"), agentgraph.Var("CallA2")
+call, call2 = agentgraph.Var("CallA"), agentgraph.Var("CallA2")
 
 varmap = agentgraph.VarMap()
 convA = varmap.mapToConversation("AgentA")
@@ -41,16 +39,15 @@ pA, pA2 = prompts.loadPrompt("PromptA"), prompts.loadPrompt("PromptA2")
 sysA = prompts.loadPrompt("SystemA")
 
 # construct tools from python functions
-# ToolsWeather = map(agentgraph.ToolReflect, [get_current_weather, get_n_day_weather_forecast])
+# ToolsWeather = agentgraph.toolsFromFunctions([get_current_weather, get_n_day_weather_forecast])
 
 # alternatively, tools can be constructed from jinja templates
-toolLoader = agentgraph.ToolLoader(cur_dir + "/tools/")
-ToolsWeather = [toolLoader.loadTool("CurWeather", handler = get_current_weather), toolLoader.loadTool("NDayWeather", handler=get_n_day_weather_forecast)]
-agentA = agentgraph.createLLMAgent(ovarA, conversation=convA, msg=sysA ** pA, callVar=callA, tools=ToolsWeather) |\
-         agentgraph.createLLMAgent(ovarA2, conversation=convA, msg=convA & pA2, callVar=callA2, tools=ToolsWeather)
+toolLoader = agentgraph.Prompts(cur_dir + "/tools/")
+ToolsWeather = agentgraph.toolsFromPrompts(toolLoader, {"CurWeather": get_current_weather, "NDayWeather": get_n_day_weather_forecast})
+ovar = scheduler.runLLMAgent(conversation=convA, msg=sysA ** pA, callVar=call, tools=ToolsWeather, vmap=varmap) 
+ovar2 = scheduler.runLLMAgent(conversation=convA, msg=convA & pA2, callVar=call2, tools=ToolsWeather)
 
-scheduler.addTask(agentA.start, varmap)
-print("LLM: ", ovarA.getValue(), "\n", callA.getValue())
-print("LLM: ", ovarA2.getValue(), "\n", callA2.getValue())
+print("LLM: ", ovar.getValue(), "\n", call.getValue())
+print("LLM: ", ovar2.getValue(), "\n", call2.getValue())
 
 scheduler.shutdown() 

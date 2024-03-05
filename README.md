@@ -74,24 +74,24 @@ prompts.loadPrompt(filename, dictionary)
 
 ### Tools
 
-There are two ways of creating tools.
+A Tool object represents a tool the LLM can call. It has two components -
+a tool json object to be sent to the LLM (see the API guide
+[here](https://platform.openai.com/docs/api-reference/chat/create)),
+and a handler that gets executed in case the tool gets called.
+
+There are two ways of creating a tool.
 
 (1)
 To create a toolLoader from a specified directory:
 
 ```
-toolLoader = agentgraph.ToolLoader(directory)
+agentgraph.ToolPrompt(prompt, handler=function)
 ```
 
-To load a tool from the specified filename, and gives it a handler to be invoked when called by LLM (optional):
+Loads the json object from the prompt, and gives it a
+pythonfunction as handler(optional).
 
-```
-toolLoader.loadTool(filename, handler=function)
-```
-
-
-Tools loaded this way need to adhere to the format specified by [the openai API](https://platform.openai.com/docs/api-reference/chat/create)
-
+The users need to make sure Tools loaded this way adhere to the format specified in the API guide.
 
 (2)
 To create a tool from a function. The function and argument descriptions are extracted from the function docstring with the format:
@@ -100,7 +100,8 @@ To create a tool from a function. The function and argument descriptions are ext
 agentgraph.ToolReflect(function)
 ```
 
-Only arguments with descriptions are included as part of the tool:
+Creates a tool from a python function. The function and argument descriptions
+are extracted from the function docstring. The docstring format should be:
 
 ```
             FUNC_DESCPITON
@@ -110,6 +111,30 @@ Only arguments with descriptions are included as part of the tool:
             ...
 ```
 
+only arguments with descriptions are included as part of the json object
+visible to the LLM.
+
+A ToolList is a wrapper for a list of Tools. An LLM agent takes a ToolList
+as argument instead of a single Tool. A ToolList can be created from wrapper
+methods that correspond to the ways of creating Tools mentioned above.
+
+(1)
+
+```
+tools = agentgraph.toolsFromFunctions([func1, func2])
+```
+
+Creates a ToolList from a list of python functions
+
+(2)
+
+```
+tools = agentgraph.toolsFromPrompts(toolLoader, {filename1: handler1, filename2: handler2})
+```
+
+Creates a ToolList from a tool loader and a dictionary mapping the files 
+containing the tool json objects to their handlers. Note that the handlers
+can be None.
 
 ### Top-Level Scheduler Creation
 
