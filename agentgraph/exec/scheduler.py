@@ -143,7 +143,11 @@ class ScoreBoardNode:
         self.isReader = isReader
         self.waiters = set()
         self.next = None
+        self.pred = None
         self.idRange = None
+
+    def clearPred(self):
+        self.pred = None
 
     def getIdRange(self) -> tuple[int, int]:
         return self.idRange
@@ -157,6 +161,12 @@ class ScoreBoardNode:
         """Sets the next scoreboard node."""
         
         self.next = next
+        next.pred = self
+
+    def getPred(self) -> 'ScoreBoardNode':
+        """Returns the previous scoreboard node."""
+
+        return self.pred
 
     def getNext(self) -> 'ScoreBoardNode':
         """Returns the next scoreboard node."""
@@ -177,6 +187,22 @@ class ScoreBoardNode:
         node."""
         
         return self.waiters
+
+    @staticmethod
+    def split_node(reader: 'ScoreBoardNode', writer: 'ScoreBoardNode') -> tuple['ScoreBoardNode', 'ScoreBoardNode']:
+        # writer node should have a single id for id range
+        writer_id = writer.idRange[0]
+        before_write, after_write = ScoreBoardNode(True), ScoreBoardNode(True)
+        for waiter in reader.waiters:
+            if waiter.getId() < writer_id:
+                before_write.addWaiter(waiter)
+            elif waiter.getId() > writer_id:
+                after_write.addWaiter(waiter)
+
+        before_write.setNext(writer)
+        writer.setNext(after_write)
+        return before_write, after_write
+
 
     @staticmethod
     def merge(this: 'ScoreBoardNode', that: 'ScoreBoardNode') -> tuple['ScoreBoardNode', 'ScoreBoardNode']:
@@ -205,18 +231,7 @@ class ScoreBoardNode:
             else:
                 return writer, writer
 
-        # writer node should have a single id for id range
-        writer_id = writer.idRange[0]
-        before_write, after_write = ScoreBoardNode(True), ScoreBoardNode(True)
-        for waiter in reader.waiters:
-            if waiter.getId() < writer_id:
-                before_write.addWaiter(waiter)
-            elif waiter.getId() > writer_id:
-                after_write.addWaiter(waiter)
-
-        before_write.setNext(writer)
-        writer.setNext(after_write)
-        return before_write, after_write
+        return split_node(reader, writer)
 
 class ScoreBoard:
     """ScoreBoard object to track object dependencies between agents."""
@@ -239,21 +254,44 @@ class ScoreBoard:
 
             return True
 
-        if not end.getIsReader():
-            # We need to allocate a new node because the end is not a
-            # reader node.
-            
-            scoreboardnode = ScoreBoardNode(True)
-            scoreboardnode.addWaiter(node)
-            end.setNext(scoreboardnode)
-            end = scoreboardnode
-            self.accesses[root] = (start, end)
-        else:
-            # We already have a reader node at the end, so just add
-            # ourselves to it.
-            
-            end.addWaiter(node)
-        return False
+        id = node.getId()
+        curr = end
+
+        while curr is not None:
+            pred = curr.getPred()
+            if not curr.getIsReader():
+                # Write node...  We should add after as long as our id
+                # is larger.
+                if curr.getIdRange()[1] < id:
+                    scoreboardnode = ScoreBoardNode(True)
+                    scoreboardnode.addWaiter(node)
+                    oldNext = curr.getNext()
+                    curr.setNext(scoreboardnode)
+                    if curr == end:
+                        self.accesses[root] = (start, scoreboardnode)
+                    else:
+                        scoreboardnode.setNext(oldNext)
+
+                    return False
+            else:
+                # Read node, can add as long as we should not be ahead
+                # of its predecessor
+                if pred == None or pred.getIdRange()[1] < id:
+                    curr.addWaiter(node)
+                    return False
+            curr = pred
+
+        # Made it to the front of the list.
+        #
+        # BD: I don't think this case is actually possible since the
+        # only case where we are not added at the end is if there is a
+        # variable resolution.  But then we should be after the
+        # variable assignment task, and it has not released its heap
+        # references yet.
+        #
+
+        raise RuntimeException("Impossible Case")
+
             
     def addWriter(self, object, node: ScheduleNode) -> bool:
         """Add task node with write dependence on object.  Returns
@@ -268,13 +306,54 @@ class ScoreBoard:
         if root in self.accesses:
             # Already have a linked list, so add ourselves to it.
             start, end = self.accesses[root]
-            end.setNext(scoreboardnode)
-            self.accesses[root] = (start, scoreboardnode)
-            return False
         else:
             # We are the first node.
             self.accesses[root] = (scoreboardnode, scoreboardnode)
             return True
+
+        id = node.getId()
+        curr = end
+
+        while curr is not None:
+            range = curr.getIdRange()
+            if id > range[1]:
+                oldNext = curr.getNext()
+                curr.setNext(scoreboardnode)
+                if curr == end:
+                    self.accesses[root] = (start, scoreboardnode)
+                else:
+                    scoreboardnode.setNext(oldNext)
+                return False
+            elif id > range[0]:
+                # We have a write splitting a read node...
+                first, last = ScoreBoardNode.split_node(curr, scoreboardnode)
+                pred = curr.getPred()
+                succ = curr.getNext()
+                if pred is None:
+                    # This case shouldn't be possible, because the
+                    # only case where we traverse is for returning a
+                    # mutable references, and a reader shouldn't be
+                    # able to provide a reference to some later
+                    # writer...
+                    raise RuntimeException("Predecessor should never be None")
+
+                pred.setNext(first)
+
+                if succ is None:
+                    self.accesses[root] = (start, last)
+                    return False
+                else:
+                    last.setNext(succ)
+                return False
+
+            curr = curr.getPred()
+
+        # BD: I don't think this case is actually possible since the
+        # only case where we are not added at the end is if there is a
+        # variable resolution.  But then we should be after the
+        # variable assignment task, and it has not released its heap
+        # references yet.
+        raise RuntimeException("Impossible case")
 
 
     def removeWaiter(self, object, node: ScheduleNode, scheduler: 'Scheduler') -> bool:
@@ -289,18 +368,22 @@ class ScoreBoard:
                 if first == last:
                     del self.accesses[root]
                 else:
-                    self.accesses[root] = (first.getNext(), last)
+                    newfirst = first.getNext()
+                    newfirst.clearPred()
+                    self.accesses[root] = (newfirst, last)
                     #Update scheduler
-                    for nextnode in first.getNext().getWaiters():
+                    for nextnode in newfirst.getWaiters():
                         scheduler.decDepCount(nextnode)
             return False
         else:
+            # BCD: Can this branch ever be called??
             entry = first.getNext()
             prev = first
             while entry != None:
                 if node in entry.getWaiters():
                     entry.getWaiters().remove(node)
                     if len(entry.getWaiters()) == 0:
+                        entry.clearPred()
                         prev.setNext(entry.getNext())
                         #See if we eliminated tail and thus need to update queue
                         if last == entry:
@@ -308,7 +391,7 @@ class ScoreBoard:
                     break
                 prev = entry
                 entry = entry.getNext()
-        return True
+            return True
 
     def mergeAccessQueues(self, source, dest):
         """
