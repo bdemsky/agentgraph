@@ -1,0 +1,18 @@
+#/bin/bash
+
+mkdir -p examples/results/
+
+for i in examples.chat.example examples.python.example examples.cookie.example examples.pythonchild.example examples.files.example
+do
+echo ==========================================================
+echo $i
+echo ----------------------------------------------------------
+if test -e examples/results/$i.result
+then
+python -m $i > examples/results/$i.txt
+diff -u examples/results/$i.txt examples/results/$i.result
+else
+python -m $i | tee examples/results/$i.txt
+fi
+
+done
