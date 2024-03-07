@@ -1,16 +1,16 @@
 #/bin/bash
 
-mkdir -p examples/results/
+mkdir -p tests/results/
 
-for i in examples.files.example examples.python.example examples.muttest.example examples.varsettest.example examples.vardicttest.example examples.retmut.example
+for i in tests.files.example tests.python.example tests.muttest.example tests.varsettest.example tests.vardicttest.example tests.retmut.example
 do
 echo ==========================================================
 echo $i
 echo ----------------------------------------------------------
-if test -e examples/results/$i.result
+if test -e tests/results/$i.result
 then
-python -m $i > examples/results/$i.txt
-if diff -q examples/results/$i.txt examples/results/$i.result > /dev/null
+python -m $i > tests/results/$i.txt
+if diff -q tests/results/$i.txt tests/results/$i.result > /dev/null
 then
 echo "Test passed!"
 else
@@ -18,7 +18,7 @@ echo "Test failed!"
 fi
 else
 echo "Missing result!"
-python -m $i | tee examples/results/$i.txt
+python -m $i | tee tests/results/$i.txt
 fi
 
 done
