@@ -1,0 +1,7 @@
+testFunc1 start
+testFunc1 end
+testFunc2 start (should appear only after testFunc1 ends)
+testFunc2 end
+0
+Large Prompt tokens: 0 Completion tokens: 0
+Small Prompt tokens: 0 Completion tokens: 0
