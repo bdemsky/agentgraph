@@ -213,10 +213,10 @@ class ScoreBoardNode:
             return
 
         if this.isReader and that.isReader:
-            node = ScoreBoardNode(True)
-            node.waiters = this.waiters | other.waiters
-            node.idRange = min(this.idRange[0], that.idRange[0]), max(this.idRange[1], that.idRange[1])
-            return node, node
+            reader = ScoreBoardNode(True)
+            reader.waiters = this.waiters | other.waiters
+            reader.idRange = min(this.idRange[0], that.idRange[0]), max(this.idRange[1], that.idRange[1])
+            return reader, reader
 
         writer = ScoreBoardNode(False)
         if this.isReader:

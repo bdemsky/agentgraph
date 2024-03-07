@@ -3,7 +3,9 @@ import inspect
 from typing import Callable
 import re
 
-class ArgMapFunc:
+class Closure:
+    """Closures that have reference to agentgraph variables and mutable objects"""
+
     def __init__(self, func: Callable, argMap: dict):
         self.func = func
         self.argMap = argMap
@@ -13,17 +15,17 @@ class ArgMapFunc:
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
 
-def withArgMap(argMap = {}):
-    """declare a function with dependencies on agentgraph variables"""
+def asClosure(argMap: dict):
+    """Decorator for turning function into agentgraph closure. Does not work on instance methods"""
     def inner(func):
-        return ArgMapFunc(func, argMap)
+        return Closure(func, argMap)
     return inner
 
 def funcToToolSig(func: Callable) -> dict:
     func_dict = {"name": func.__name__}
     sig = inspect.signature(func)
     params = sig.parameters
-    ignore = set(func.argMap.keys()) if type(func) is ArgMapFunc else set()
+    ignore = set(func.argMap.keys()) if type(func) is Closure else set()
 
     desc_dict = {}
     doc = func.__doc__

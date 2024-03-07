@@ -3,7 +3,7 @@ from agentgraph.core.llmmodel import LLMModel
 from agentgraph.core.conversation import Conversation
 from agentgraph.core.prompts import Prompts
 from agentgraph.core.tools import toolsFromFunctions, toolsFromPrompts, ToolReflect, ToolPrompt, ToolList
-from agentgraph.core.reflect import withArgMap
+from agentgraph.core.reflect import Closure, asClosure
 from agentgraph.core.var import Var
 from agentgraph.core.varset import VarSet
 from agentgraph.core.vardict import VarDict

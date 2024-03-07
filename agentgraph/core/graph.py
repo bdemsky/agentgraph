@@ -9,7 +9,7 @@ from agentgraph.data.filestore import FileStore
 from agentgraph.core.llmmodel import LLMModel
 from agentgraph.core.msgseq import MsgSeq
 from agentgraph.core.mutable import Mutable
-from agentgraph.core.reflect import ArgMapFunc
+from agentgraph.core.reflect import Closure
 from agentgraph.core.tools import ToolList
 from agentgraph.core.var import Var
 from agentgraph.core.vardict import VarDict
@@ -237,7 +237,7 @@ def handleCalls(calls: list, handlers: dict, varMap: dict):
        except Exception as e:
            call["exception"] = e
        else:
-           if type(handler) is ArgMapFunc: 
+           if type(handler) is Closure:
                for arg, item in handler.argMap.items():
                     args[arg] = varMap[item] if isinstance(item, Var) else item 
            if handler is not None:

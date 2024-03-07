@@ -1,10 +1,11 @@
 from agentgraph.core.jinjamanager import JinjaManager
 from agentgraph.core.mutable import Mutable
 from agentgraph.core.prompts import Prompt
-from agentgraph.core.reflect import funcToToolSig, ArgMapFunc
+from agentgraph.core.reflect import funcToToolSig, Closure
 from agentgraph.core.var import Var
 from dataclasses import dataclass
 import json
+from inspect import ismethod
 from typing import Callable, Union
     
 class Tool:
@@ -12,8 +13,14 @@ class Tool:
         self.handler = handler
         self.readset = set()
         self.refs = set()
-        if isinstance(self.handler, ArgMapFunc):
-            for val in self.handler.argMap.values():
+
+        if ismethod(handler) and isinstance(handler.__self__, Mutable):
+            self.refs.add(handler.__self__)
+
+        if isinstance(handler, Closure):
+            if ismethod(handler.func) and isinstance(handler.func.__self__, Mutable):
+                self.refs.add(handler.func.__self__)
+            for val in handler.argMap.values():
                 if isinstance(val, Var):
                     if val.isMutable():
                         raise RuntimeError("tool cannot depend on mutvars")
@@ -44,6 +51,7 @@ class ToolReflect(Tool):
             ...
         only arguments with descriptions are included in the request to LLM.
         """
+
         handler = func if createHandler else None
         super().__init__(handler)
         self.toolSig: dict = funcToToolSig(func)
@@ -78,11 +86,11 @@ class ToolList(Mutable):
         for tool in tools:
             self.takeToolOwnership(tool)
         self.tools = tools
-       
+
     def takeToolOwnership(self, tool):
         for ref in tool.getRefs():
             ref.setOwningObject(self) 
-
+ 
     def exec(self, varsMap: dict) -> tuple[list[dict], dict[str, Callable]]:
         toolsParam = []
         handlers = {}
@@ -93,11 +101,17 @@ class ToolList(Mutable):
         return toolsParam, handlers
 
     def getReadSet(self) -> set:
-        return set.union(*[tool.getReadSet() for tool in self.tools])
+        readSet = set()
+        for tool in self.tools:
+            readSet |= tool.getReadSet()
+        return readSet
 
     def append(self, tool: Tool):
         self.takeToolOwnership(tool)
         self.tools.append(tool)
+
+    def pop(self, *args) -> Tool:
+        return self.tools.pop(*args)
 
 def toolsFromFunctions(funcs: list[Callable]):
     return ToolList(list(map(ToolReflect, funcs)))
