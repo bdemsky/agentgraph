@@ -2,7 +2,7 @@
 
 mkdir -p tests/results/
 
-for i in tests.files.example tests.python.example tests.muttest.example tests.varsettest.example tests.vardicttest.example tests.retmut.example
+for i in tests.files.example tests.python.example tests.muttest.example tests.varsettest.example tests.vardicttest.example tests.retmut.example tests.mergeowner.example
 do
 echo ==========================================================
 echo $i
