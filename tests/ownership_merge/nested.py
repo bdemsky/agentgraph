@@ -15,10 +15,10 @@ def testFunc1(scheduler, reg, toollist) -> list:
     toollist.append(agentgraph.ToolReflect(reg.setValue))
     pA = prompts.loadPrompt("PromptA", {"num": 1})
     ovar = scheduler.runLLMAgent(msg = sys ** pA, callVar=callVar, tools=toollist)
-    print("register=", reg.getValue())
+    assert reg.getValue() == 1
     scheduler.runPythonAgent(lambda _, r, n: r.setValue(n), pos=[reg, 2])
     print("call: ", callVar.getValue(), "out: ", ovar.getValue())
-    print("register=", reg.getValue())
+    assert reg.getValue() == 2
 
     return []
 
@@ -28,9 +28,9 @@ scheduler = agentgraph.getRootScheduler(model)
 scheduler.runPythonAgent(testFunc1, pos=[reg, toollist])
 pA = prompts.loadPrompt("PromptA", {"num": 3})
 ovar = scheduler.runLLMAgent(msg = sys ** pA, callVar=callVar, tools=toollist)
-print("register=",reg.getValue())
+assert reg.getValue() == 3
 scheduler.runPythonAgent(lambda _, r, n: r.setValue(n), pos=[reg, 4])
 print("call: ", callVar.getValue(), "out: ", ovar.getValue())
-print("register=", reg.getValue())
+assert reg.getValue() == 4
 
 scheduler.shutdown()
