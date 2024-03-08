@@ -888,4 +888,5 @@ class Scheduler:
                 time.sleep(0.001)
             # All good, shutdown the system
             self.engine.shutdown()
-            self.getDefaultModel().print_statistics()
+            if agentgraph.config.VERBOSE > 0:
+                self.getDefaultModel().print_statistics()

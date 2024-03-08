@@ -1,7 +1,8 @@
 #/bin/bash
 
-mkdir -p tests/results/
+echo "VERBOSE, TIMING = 0, 0" >> agentgraph/config.py
 
+mkdir -p tests/results/
 for i in tests.files.example tests.python.example tests.muttest.example tests.varsettest.example tests.vardicttest.example tests.retmut.example tests.mergeowner.example
 do
 echo ==========================================================
@@ -22,3 +23,5 @@ python -m $i | tee tests/results/$i.txt
 fi
 
 done
+
+sed -i '$d' agentgraph/config.py
