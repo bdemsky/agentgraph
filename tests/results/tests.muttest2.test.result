@@ -1,5 +1,6 @@
-012
-3
-4
+testFunc1 start
+Dispatched all
+testFunc1 end
+1 1
 Large Prompt tokens: 0 Completion tokens: 0
 Small Prompt tokens: 0 Completion tokens: 0

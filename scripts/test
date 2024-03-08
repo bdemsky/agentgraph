@@ -1,9 +1,7 @@
 #/bin/bash
 
-echo "VERBOSE, TIMING = 0, 0" >> agentgraph/config.py
-
 mkdir -p tests/results/
-for i in tests.files.example tests.python.example tests.muttest.example tests.varsettest.example tests.vardicttest.example tests.retmut.example tests.mergeowner.example
+for i in tests.files.example tests.python.example tests.muttest.example tests.varsettest.example tests.vardicttest.example tests.retmut.example tests.mergeowner.example tests.muttest2.test
 do
 echo ==========================================================
 echo $i
@@ -21,7 +19,5 @@ else
 echo "Missing result!"
 python -m $i | tee tests/results/$i.txt
 fi
-
 done
 
-sed -i '$d' agentgraph/config.py

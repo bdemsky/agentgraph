@@ -1,4 +1,5 @@
 import agentgraph
+import agentgraph.config
 from dataclasses import dataclass
 import os
 import random
@@ -27,6 +28,8 @@ class Register(agentgraph.core.mutable.Mutable):
         self.waitForAccess()
         self.value = num
 
+agentgraph.config.VERBOSE = 0
+agentgraph.config.TIMING = 0
 reg = Register()
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 toollist = agentgraph.core.tools.ToolList()
