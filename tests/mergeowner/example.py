@@ -28,46 +28,53 @@ class Register(agentgraph.core.mutable.Mutable):
         self.waitForAccess()
         self.value = num
 
-agentgraph.config.VERBOSE = 0
-agentgraph.config.TIMING = 0
-reg = Register()
-cur_dir = os.path.dirname(os.path.abspath(__file__))
-toollist = agentgraph.core.tools.ToolList()
-prompts = agentgraph.Prompts(cur_dir + "/prompts/")
-sys = prompts.loadPrompt("System")
-callVar = agentgraph.Var("Call")
+class RegisterList(agentgraph.core.mutable.Mutable):
+    def __init__(self, owner = None):
+        super().__init__(owner)
+        self.list = []
 
-model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000, api_version="2023-12-01-preview")
+    def __getitem__(self, index) -> Register:
+        self.waitForAccess()
+        return self.list[index]
+
+    def append(self, reg: Register):
+        self.waitForAccess()
+        reg.setOwningObject(self)
+        self.list.append(reg)
+
+    def pop(self, *args) -> Register:
+        return self.list.pop(*args)
+
+model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
 scheduler = agentgraph.getRootScheduler(model)
+reg = Register()
+reglist = RegisterList()
 
-def testFunc1(scheduler, reg, toollist) -> list:
-    toollist.append(agentgraph.ToolReflect(reg.setValue))
-    pA = prompts.loadPrompt("PromptA", {"num": 1})
-    ovar = scheduler.runLLMAgent(msg = sys ** pA, callVar=callVar, tools=toollist)
+def testFunc1(scheduler, reg, reglist) -> list:
+    reglist.append(reg)
+    scheduler.runPythonAgent(lambda _, rl, n: rl[0].setValue(n), pos=[reglist, 1])
     print(reg.getValue())
     scheduler.runPythonAgent(lambda _, r, n: r.setValue(n), pos=[reg, 2])
     print(reg.getValue())
 
     return []
 
-# nest scope
-scheduler.runPythonAgent(testFunc1, pos=[reg, toollist])
-pA = prompts.loadPrompt("PromptA", {"num": 3})
-ovar = scheduler.runLLMAgent(msg = sys ** pA, callVar=callVar, tools=toollist)
+# nested scope
+scheduler.runPythonAgent(testFunc1, pos=[reg, reglist])
+scheduler.runPythonAgent(lambda _, rl, n: rl[0].setValue(n), pos=[reglist, 3])
 print(reg.getValue())
 scheduler.runPythonAgent(lambda _, r, n: r.setValue(n), pos=[reg, 4])
 print(reg.getValue())
 
 # loop
-for i in range(0, 10, 2):
-    pA = prompts.loadPrompt("PromptA", {"num": i})
-    ovar = scheduler.runLLMAgent(msg = sys ** pA, callVar=callVar, tools=toollist)
+for i in range(1, 5, 2):
+    scheduler.runPythonAgent(lambda _, rl, n: rl[0].setValue(n), pos=[reglist, i])
     print(reg.getValue())
     scheduler.runPythonAgent(lambda _, r, n: r.setValue(n), pos=[reg, i+1])
     print(reg.getValue())
     # add a new register to toollist every iteration
-    toollist.pop()
+    reglist.pop()
     reg = Register()
-    toollist.append(agentgraph.ToolReflect(reg.setValue))
+    reglist.append(reg)
 
 scheduler.shutdown()

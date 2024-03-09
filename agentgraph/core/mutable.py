@@ -33,11 +33,13 @@ class Mutable:
 
         # get ownership of roots to be merged
         from agentgraph.exec.scheduler import getCurrentScheduler
-        x.waitForAccess()
-        y.waitForAccess()
+        scheduler = getCurrentScheduler()
+        if scheduler is not None:
+            x.waitForAccess()
+            y.waitForAccess()
+            scheduler.mergeObjAccesses(y, x)
         y._owner = x
         x._size += y._size
-        getCurrentScheduler().mergeObjAccesses(y, x)
     
     def getRootObject(self) -> 'Mutable':
         # find ownership root with the find in union find     
