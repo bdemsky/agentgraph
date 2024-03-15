@@ -547,6 +547,7 @@ class Scheduler:
         child = self.getPendingChild()
         if child:
             threadrun(self.engine, child.scope, child)
+            setCurrentScheduler(self)
     
     def getPendingChild(self):
         with self.childrenLock:
@@ -677,7 +678,7 @@ class Scheduler:
                     if self.scoreboard.addWriter(var, scheduleNode) == False:
                         depCount += 1
             return depCount
-                
+
         if var not in self.varMap:
             varName = var.getName()
             raise RuntimeError(f"Use before define with {varName}")
