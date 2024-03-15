@@ -5,7 +5,7 @@ import threading
 import traceback
 import time
 
-from agentgraph.exec.engine import Engine
+from agentgraph.exec.engine import Engine, threadrun
 from agentgraph.core.graph import VarMap, GraphNested, GraphNode, GraphPythonAgent, GraphVarWait, createPythonAgent, createLLMAgent
 from agentgraph.core.var import Var
 from agentgraph.core.vardict import VarDict
@@ -495,6 +495,8 @@ class Scheduler:
         self.condVar = threading.Condition()
         self.dummyVar = Var("Dummy$$$$$")
         self.nextId = 1
+        self.children = set()
+        self.childrenLock = threading.Lock()
 
     def _getNewId(self) -> int:
         id = self.nextId
@@ -524,7 +526,8 @@ class Scheduler:
         self.addTask(gvar, None, varDict)
         with self.condVar:
             while not gvar.isDone():
-                self.condVar.wait()
+                if not self.condVar.wait(timeout=0.1):
+                    self.stealChildTask()
         
     def readVariable(self, var: Var):
         """
@@ -536,9 +539,25 @@ class Scheduler:
         #Wait for our task to finish
         with self.condVar:
             while not gvar.isDone():
-                self.condVar.wait()
+                if not self.condVar.wait(timeout=0.1):
+                    self.stealChildTask()
         return gvar[var]
-                
+    
+    def stealChildTask(self):
+        child = self.getPendingChild()
+        if child:
+            threadrun(self.engine, child.scope, child)
+    
+    def getPendingChild(self):
+        with self.childrenLock:
+            for child in self.children:
+                if child.future.cancel():
+                    return child
+                descendent = child.getPendingChild()
+                if descendent != None:
+                    return descendent
+
+
     def addTask(self, node: GraphNode, vm: VarMap = None, varMap: dict = None):
         """
         Adds a new task for the scheduler to run.
@@ -842,6 +861,8 @@ class Scheduler:
         if self.parent is not None:
             with self.parent.lock:
                 self.parent.completed(scheduleNode)
+            with self.parent.childrenLock:
+                self.parent.children.remove(self)
         else:
             print("This should not happen!")
 
@@ -860,7 +881,9 @@ class Scheduler:
                 child = Scheduler(self.model, scheduleNode, self, self.engine)
                 #Add a count for the PythonAgent task
                 child.windowSize = 1
-                self.engine.threadQueueItem(scheduleNode, child)
+                with self.childrenLock:
+                    self.children.add(child)
+                    self.engine.threadQueueItem(scheduleNode, child)
                 return
             
             inVarMap = scheduleNode.getInVarMap()            

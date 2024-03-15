@@ -60,7 +60,7 @@ class Engine:
         self.queue.async_q.put_nowait((node, scheduler))
 
     def threadQueueItem(self, node: 'agentgraph.exec.scheduler.ScheduleNode', scheduler):
-        self.threadPool.submit(threadrun, self, node, scheduler)
+        scheduler.future = self.threadPool.submit(threadrun, self, node, scheduler)
         
     def shutdown(self):
         self.threadPool.shutdown(wait=True)
