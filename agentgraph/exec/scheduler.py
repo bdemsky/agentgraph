@@ -524,10 +524,7 @@ class Scheduler:
         varDict = dict()
         varDict[self.dummyVar] = mutable.getRootObject()
         self.addTask(gvar, None, varDict)
-        with self.condVar:
-            while not gvar.isDone():
-                if not self.condVar.wait(timeout=0.1):
-                    self.stealChildTask()
+        self.waitOnGvar(gvar)
         
     def readVariable(self, var: Var):
         """
@@ -537,12 +534,22 @@ class Scheduler:
         gvar = GraphVarWait([var], self.condVar)
         self.addTask(gvar)
         #Wait for our task to finish
+        self.waitOnGvar(gvar)
+        return gvar[var]
+    
+    def waitOnGvar(self, gvar):
+        """
+        Wait for condVar or steal a child task on timeout.
+        """
         with self.condVar:
             while not gvar.isDone():
                 if not self.condVar.wait(timeout=0.1):
-                    self.stealChildTask()
-        return gvar[var]
-    
+                    self.condVar.release()
+                    try:
+                        self.stealChildTask()
+                    finally:
+                        self.condVar.acquire()
+
     def stealChildTask(self):
         child = self.getPendingChild()
         if child:
@@ -550,6 +557,9 @@ class Scheduler:
             setCurrentScheduler(self)
     
     def getPendingChild(self):
+        """
+        Find a child task that has not started running.
+        """
         with self.childrenLock:
             for child in self.children:
                 if child.future.cancel():
