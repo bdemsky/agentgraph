@@ -868,16 +868,13 @@ class Scheduler:
             for var in writeSet:
                 writeMap[var] = self.varMap[var]
             scheduleNode.setOutVarMap(writeMap)
-        
-        if self.parent is not None:
-            with self.parent.lock:
-                self.parent.completed(scheduleNode)
-            with self.parent.childrenLock:
-                self.parent.children.remove(self)
-        else:
-            print("This should not happen!")
 
-            
+        with self.parent.lock:
+            self.parent.completed(scheduleNode)
+        with self.parent.childrenLock:
+            self.parent.children.remove(self)
+
+
     def startNestedTask(self, scheduleNode: ScheduleNode):
         """Starts task."""
         
