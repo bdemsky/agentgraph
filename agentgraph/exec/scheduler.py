@@ -543,19 +543,33 @@ class Scheduler:
         """
         with self.condVar:
             while not gvar.isDone():
-                if self.engine.getPendingPythonTaskCount() > 1 or not self.condVar.wait(timeout=0.1):
+                if self.engine.getPendingPythonTaskCount() > 1:
                     self.condVar.release()
+                    taskStolen = false
                     try:
-                        self.stealChildTask()
+                        taskStolen = self.stealChildTask()
                     finally:
                         self.condVar.acquire()
+                        # Make sure we didn't miss the event while we
+                        # tried to steal task.
+                        if gvar.isDone():
+                            return
+                        # If we stole a task successfully, loop again
+                        # without waiting
+                        if taskStolen:
+                            continue
+                # Did not successfully steal task, so wait and give up lock
+                self.condVar.wait(timeout=0.01)
 
-    def stealChildTask(self):
+    def stealChildTask(self) -> bool:
         child = self.getPendingChild()
         if child:
             threadrun(self.engine, child.scope, child)
             setCurrentScheduler(self)
-    
+            return True
+        else:
+            return False
+
     def getPendingChild(self):
         """
         Find a child task that has not started running.

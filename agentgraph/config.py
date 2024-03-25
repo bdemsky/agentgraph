@@ -9,3 +9,6 @@ VERBOSE = 1
 
 TIMING = 1
 # Print out timing information for request.
+
+THREAD_POOL_DEFAULT_SIZE = 20
+# Thread pool default size

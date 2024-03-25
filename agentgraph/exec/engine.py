@@ -3,12 +3,13 @@ import janus
 import traceback
 import sys
 import concurrent.futures
+import agentgraph.config
 
 from threading import Thread, Lock
 from agentgraph.core.graph import GraphNode, GraphPair, GraphNested, VarMap
 
 class Engine:
-    def __init__(self, concurrency: int = 20):
+    def __init__(self, concurrency: int = agentgraph.config.THREAD_POOL_DEFAULT_SIZE):
         self.loop = asyncio.new_event_loop()
         self.event_loop_thread = Thread(target=self.run_event_loop)
         self.event_loop_thread.start()
