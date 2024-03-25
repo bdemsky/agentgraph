@@ -4,7 +4,7 @@ import traceback
 import sys
 import concurrent.futures
 
-from threading import Thread
+from threading import Thread, Lock
 from agentgraph.core.graph import GraphNode, GraphPair, GraphNested, VarMap
 
 class Engine:
@@ -16,6 +16,8 @@ class Engine:
         self.queue = future.result()
         self.concurrency = concurrency
         self.threadPool = concurrent.futures.ThreadPoolExecutor(max_workers = concurrency)
+        self.pendingPythonTaskLock = Lock()
+        self.pendingPythonTaskCount = 0 # number of tasks pending in thread pool
         for i in range(concurrency):
             asyncio.run_coroutine_threadsafe(self.worker(i), self.loop)
         
@@ -60,7 +62,16 @@ class Engine:
         self.queue.async_q.put_nowait((node, scheduler))
 
     def threadQueueItem(self, node: 'agentgraph.exec.scheduler.ScheduleNode', scheduler):
+        with self.pendingPythonTaskLock:
+            self.pendingPythonTaskCount += 1
         scheduler.future = self.threadPool.submit(threadrun, self, node, scheduler)
+    
+    def getPendingPythonTaskCount(self):
+        """
+        Get number of Python tasks still pending in thread pool
+        """
+        with self.pendingPythonTaskLock:
+            return self.pendingPythonTaskCount
         
     def shutdown(self):
         self.threadPool.shutdown(wait=True)
@@ -75,6 +86,9 @@ def threadrun(engine, scheduleNode, scheduler):
     """
     Start a new thread to run child task.
     """
+
+    with engine.pendingPythonTaskLock:
+        engine.pendingPythonTaskCount -= 1
 
     import agentgraph.exec.scheduler
     agentgraph.exec.scheduler.setCurrentTask(scheduleNode)

@@ -543,7 +543,7 @@ class Scheduler:
         """
         with self.condVar:
             while not gvar.isDone():
-                if not self.condVar.wait(timeout=0.1):
+                if self.engine.getPendingPythonTaskCount() > 1 or not self.condVar.wait(timeout=0.1):
                     self.condVar.release()
                     try:
                         self.stealChildTask()
