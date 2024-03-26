@@ -247,6 +247,8 @@ class ScoreBoard:
     def addReader(self, object, node: ScheduleNode) -> bool:
         """Add task node with read dependence on object.  Returns True
         if there is no conflict blocking execution."""
+        scoreboardnode = ScoreBoardNode(True)
+        scoreboardnode.addWaiter(node)
 
         root = object.getRootObject()
         if root in self.accesses:
@@ -256,7 +258,7 @@ class ScoreBoard:
         else:
             # If we are at the beginning, we can just return true and
             # do the snapshot.
-
+            self.accesses[root] = (scoreboardnode, scoreboardnode)
             return True
 
         id = node.getId()
@@ -268,8 +270,6 @@ class ScoreBoard:
                 # Write node...  We should add after as long as our id
                 # is larger.
                 if curr.getIdRange()[1] < id:
-                    scoreboardnode = ScoreBoardNode(True)
-                    scoreboardnode.addWaiter(node)
                     oldNext = curr.getNext()
                     curr.setNext(scoreboardnode)
                     if curr == end:
@@ -283,7 +283,7 @@ class ScoreBoard:
                 # of its predecessor
                 if pred is None or pred.getIdRange()[1] < id:
                     curr.addWaiter(node)
-                    return False
+                    return curr == start
             curr = pred
 
         # Made it to the front of the list.
@@ -521,7 +521,7 @@ class Scheduler:
                 scheduler.scoreboard.mergeAccessQueues(source, dest)
             scheduler = scheduler.parent
         
-    def objAccess(self, mutable):
+    def objAccess(self, mutable, readonly):
         """
         Waits for object access
         """
@@ -706,8 +706,12 @@ class Scheduler:
             if isinstance(var, agentgraph.core.mutable.Mutable):
                 # Add ref and if we are new then add it as a writer and increment depCount...
                 if scheduleNode.addRef(var):
-                    if self.scoreboard.addWriter(var, scheduleNode) == False:
-                        depCount += 1
+                    if var.isReadonly():
+                        if self.scoreboard.addReader(var, scheduleNode) == False:
+                            depCount += 1
+                    else:
+                        if self.scoreboard.addWriter(var, scheduleNode) == False:
+                            depCount += 1
             return depCount
 
         if var not in self.varMap:

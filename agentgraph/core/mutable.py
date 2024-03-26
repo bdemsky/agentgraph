@@ -9,6 +9,7 @@ class Mutable:
         It is an ownership root iff it is owned by a task.
         """
         self._size = 1
+        self._readonly = False
         
         if owner is not None:
             root = owner.getRootObject()
@@ -86,9 +87,12 @@ class Mutable:
         if root._owner == currTask:
             return
         # No, so wait for access
-        getCurrentScheduler().objAccess(root)
+        getCurrentScheduler().objAccess(root, self.isReadonly())
         # We own this mutable now
         root._owner = currTask
+    
+    def isReadonly(self):
+        return self._readonly
 
     def _snapshot(self):
         pass
