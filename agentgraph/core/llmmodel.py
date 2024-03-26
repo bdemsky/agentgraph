@@ -4,6 +4,7 @@ import agentgraph.config
 import json
 import tiktoken
 import time
+from typing import Optional
 from pathlib import Path
 from openai import AsyncOpenAI, AsyncAzureOpenAI, APITimeoutError
 
@@ -93,7 +94,7 @@ class LLMModel:
         self.response_id = 0
         self.stream = stream
 
-    async def lookupCache(self, message_to_send) -> str:
+    async def lookupCache(self, message_to_send) -> Optional[str]:
         if agentgraph.config.DEBUG_PATH is None:
             return None
         encoded = json.dumps(message_to_send)
@@ -185,13 +186,13 @@ class LLMModel:
                     num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
         return num_tokens
 
-    async def sendData(self, message_to_send, tools) -> str:
+    async def sendData(self, message_to_send, tools):
         request_params = {"messages": message_to_send}
         if tools:
             request_params["tools"] = tools
 
         cache_result = await self.lookupCache(request_params)
-        if cache_result != None:
+        if cache_result is not None:
             return cache_result
 
         totallen = 0

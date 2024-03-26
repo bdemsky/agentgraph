@@ -1,21 +1,23 @@
+from typing import Optional, Union
 import contextvars
+import agentgraph
 
 class Mutable:
-    def __init__(self, owner: 'Mutable' = None):
+    def __init__(self, owner: 'Optional[Mutable]' = None):
         """
         A mutable can be owned by either another mutable or a task.
         It is an ownership root iff it is owned by a task.
         """
-        if owner != None:
+        self._size = 1
+        
+        if owner is not None:
             root = owner.getRootObject()
             root.waitForAccess()
-            self._owner = root
+            self._owner: Union['Mutable', 'agentgraph.exec.scheduler.ScheduleNode'] = root
             root._size += 1
         else:
             from agentgraph.exec.scheduler import getCurrentTask
             self._owner = getCurrentTask()
-
-        self._size = 1
         
 
     def setOwningObject(self, owner: 'Mutable'):
@@ -39,24 +41,32 @@ class Mutable:
     
     def getRootObject(self) -> 'Mutable':
         # find ownership root with the find in union find     
-        root = self
-        while isinstance(root._owner, Mutable):
-            root = self._owner
+        root: Mutable = self
+        while True:
+            nextOwner = root._owner
+            if isinstance(nextOwner, Mutable):
+                root = nextOwner
+            else:
+                break
 
         # path compression
-        obj = self
-        while isinstance(obj._owner, Mutable):
-            owner = obj._owner
-            obj._owner = root
-            obj = owner
-
+        obj: Mutable = self
+        while True:
+            nextOwner = obj._owner
+            if isinstance(nextOwner, Mutable):
+                obj._owner = root
+                obj = nextOwner
+            else:
+                break
+            
         return root
 
-    def getOwningTask(self) -> 'ScheduleNode':
+    def getOwningTask(self) -> Optional['agentgraph.exec.scheduler.ScheduleNode']:
         root = self.getRootObject()
+        assert root._owner is None or isinstance(root._owner, agentgraph.exec.scheduler.ScheduleNode)
         return root._owner
     
-    def setOwningTask(self, task: 'ScheduleNode'):
+    def setOwningTask(self, task: 'agentgraph.exec.scheduler.ScheduleNode'):
         root = self.getRootObject()
         root._owner = task
         

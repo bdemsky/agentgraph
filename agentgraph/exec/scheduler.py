@@ -4,6 +4,7 @@ import sys
 import threading
 import traceback
 import time
+from typing import Any, Dict, List, Optional, Set, Union
 
 from agentgraph.exec.engine import Engine, threadrun
 from agentgraph.core.graph import VarMap, GraphNested, GraphNode, GraphPythonAgent, GraphVarWait, createPythonAgent, createLLMAgent
@@ -35,10 +36,10 @@ class ScheduleNode:
     
     def __init__(self, node: GraphNode, id: int):
         self.node = node
-        self.waitMap = dict()
-        self.inVarMap = dict()
+        self.waitMap: Dict[Var, list]  = dict()
+        self.inVarMap: Dict[Var, Any] = dict()
         self.depCount = 0
-        self.refs = set()
+        self.refs: Set['agentgraph.core.mutable.Mutable'] = set()
         self.id = id
         
     def addRef(self, ref) -> bool:
@@ -128,9 +129,10 @@ class ScheduleNode:
 
     def threadRun(self, scheduler: 'Scheduler'):
         """Run the node"""
+        assert isinstance(self.node, agentgraph.core.graph.GraphPythonAgent)
         self.outVarMap = self.node.execute(scheduler, self.getInVarMap())
 
-dummyTask = ScheduleNode(None, 0)
+dummyTask = ScheduleNode(GraphNode(), 0)
             
 class ScoreBoardNode:
     """ScoreBoard linked list node to track heap dependences."""
@@ -141,16 +143,18 @@ class ScoreBoardNode:
         node."""
         
         self.isReader = isReader
-        self.waiters = set()
-        self.next = None
-        self.pred = None
-        self.idRange = None
+        self.waiters: Set[ScheduleNode] = set()
+        self.next: Optional['ScoreBoardNode'] = None
+        self.pred: Optional['ScoreBoardNode'] = None
+        self.idRange: Optional[tuple[int, int]] = None
 
     def clearPred(self):
         self.pred = None
 
     def getIdRange(self) -> tuple[int, int]:
-        return self.idRange
+        range = self.idRange
+        assert range is not None
+        return range
 
     def getIsReader(self) -> bool:
         """Returns true if the node in question is for readers."""
@@ -163,12 +167,12 @@ class ScoreBoardNode:
         self.next = next
         next.pred = self
 
-    def getPred(self) -> 'ScoreBoardNode':
+    def getPred(self) -> Optional['ScoreBoardNode']:
         """Returns the previous scoreboard node."""
 
         return self.pred
 
-    def getNext(self) -> 'ScoreBoardNode':
+    def getNext(self) -> Optional['ScoreBoardNode']:
         """Returns the next scoreboard node."""
 
         return self.next
@@ -176,13 +180,14 @@ class ScoreBoardNode:
     def addWaiter(self, waiter: ScheduleNode):
         """Adds a waiter to this scoreboard node."""
 
-        if self.idRange is None:
+        range = self.idRange
+        if range is None:
             self.idRange = waiter.id, waiter.id
         else:
-            self.idRange = min(self.idRange[0], waiter.id), max(self.idRange[1], waiter.id)
+            self.idRange = min(range[0], waiter.id), max(range[1], waiter.id)
         self.waiters.add(waiter)
 
-    def getWaiters(self) -> list:
+    def getWaiters(self) -> Set[ScheduleNode]:
         """Returns a list of waiting ScheduleNodes for this scoreboard
         node."""
         
@@ -191,7 +196,7 @@ class ScoreBoardNode:
     @staticmethod
     def split_node(reader: 'ScoreBoardNode', writer: 'ScoreBoardNode') -> tuple['ScoreBoardNode', 'ScoreBoardNode']:
         # writer node should have a single id for id range
-        writer_id = writer.idRange[0]
+        writer_id = writer.getIdRange()[0]
         before_write, after_write = ScoreBoardNode(True), ScoreBoardNode(True)
         for waiter in reader.waiters:
             if waiter.getId() < writer_id:
@@ -208,30 +213,30 @@ class ScoreBoardNode:
     def merge(this: 'ScoreBoardNode', that: 'ScoreBoardNode') -> tuple['ScoreBoardNode', 'ScoreBoardNode']:
         """merge two nodes with overlapping id ranges. """
 
-        if this.idRange[1] < that.idRange[0] or that.idRange[1] < this.idRange[0]:
-            print("BAD")
-            return
+        thisRange = this.getIdRange()
+        thatRange = that.getIdRange()
+        assert thisRange[1] >= thatRange[0] and thatRange[1] >= thisRange[0]
 
         if this.isReader and that.isReader:
             reader = ScoreBoardNode(True)
-            reader.waiters = this.waiters | other.waiters
-            reader.idRange = min(this.idRange[0], that.idRange[0]), max(this.idRange[1], that.idRange[1])
+            reader.waiters = this.waiters | that.waiters
+            reader.idRange = min(thisRange[0], thatRange[0]), max(thisRange[1], thatRange[1])
             return reader, reader
 
         writer = ScoreBoardNode(False)
         if this.isReader:
             reader = this
             writer.waiters = that.waiters
-            writer.idRange = that.idRange
+            writer.idRange = thatRange
         else:
             writer.waiters = this.waiters
-            writer.idRange = this.idRange
+            writer.idRange = thisRange
             if that.isReader:
                 reader = that
             else:
                 return writer, writer
 
-        return split_node(reader, writer)
+        return ScoreBoardNode.split_node(reader, writer)
 
 class ScoreBoard:
     """ScoreBoard object to track object dependencies between agents."""
@@ -276,7 +281,7 @@ class ScoreBoard:
             else:
                 # Read node, can add as long as we should not be ahead
                 # of its predecessor
-                if pred == None or pred.getIdRange()[1] < id:
+                if pred is None or pred.getIdRange()[1] < id:
                     curr.addWaiter(node)
                     return False
             curr = pred
@@ -290,7 +295,7 @@ class ScoreBoard:
         # references yet.
         #
 
-        raise RuntimeException("Impossible Case")
+        raise RuntimeError("Impossible Case")
 
             
     def addWriter(self, object, node: ScheduleNode) -> bool:
@@ -335,7 +340,7 @@ class ScoreBoard:
                     # mutable references, and a reader shouldn't be
                     # able to provide a reference to some later
                     # writer...
-                    raise RuntimeException("Predecessor should never be None")
+                    raise RuntimeError("Predecessor should never be None")
 
                 pred.setNext(first)
 
@@ -353,7 +358,7 @@ class ScoreBoard:
         # variable resolution.  But then we should be after the
         # variable assignment task, and it has not released its heap
         # references yet.
-        raise RuntimeException("Impossible case")
+        raise RuntimeError("Impossible case")
 
 
     def removeWaiter(self, object, node: ScheduleNode, scheduler: 'Scheduler') -> bool:
@@ -379,7 +384,7 @@ class ScoreBoard:
             # BCD: Can this branch ever be called??
             entry = first.getNext()
             prev = first
-            while entry != None:
+            while entry is not None:
                 if node in entry.getWaiters():
                     entry.getWaiters().remove(node)
                     if len(entry.getWaiters()) == 0:
@@ -420,7 +425,7 @@ class ScoreBoard:
             srcNode = srcNode.getNext()
             dstNode = dstNode.getNext()
 
-        while srcNode != None and dstNode != None:
+        while srcNode is not None and dstNode is not None:
             if srcNode.getIdRange()[1] < dstNode.getIdRange()[0]:
                 curNode.setNext(srcNode)
                 curNode = srcNode
@@ -436,10 +441,10 @@ class ScoreBoard:
                 srcNode = srcNode.getNext()
                 dstNode = dstNode.getNext()
         
-        if srcNode != None:
+        if srcNode is not None:
             curNode.setNext(srcNode)
             last = srcLast
-        elif dstNode != None:
+        elif dstNode is not None:
             curNode.setNext(dstNode)
             last = dstLast
         else:
@@ -449,15 +454,15 @@ class ScoreBoard:
         del self.accesses[source]
 
 class TaskNode:
-    def __init__(self, node: GraphNode, varMap: dict):
+    def __init__(self, node: GraphNode, varMap: Dict[Var, Any]):
         self.node = node
         self.varMap = varMap
-        self.next = None
+        self.next: Optional['TaskNode'] = None
 
     def setNext(self, next: 'TaskNode'):
         self.next = next
 
-    def getNext(self):
+    def getNext(self) -> Optional['TaskNode']:
         return self.next
         
     def getVarMap(self) -> dict:
@@ -469,7 +474,7 @@ class TaskNode:
 class Scheduler:
     """Scheduler class.  This does all of the scheduling for a given Nested Graph."""
 
-    def __init__(self, model: LLMModel, scope: ScheduleNode, parent: 'Scheduler', engine: Engine):
+    def __init__(self, model: LLMModel, scope: Optional[ScheduleNode], parent: Optional['Scheduler'], engine: Engine):
         """
         Object initializer for a new Scheduler:
         model - the model we want to use by default
@@ -483,19 +488,19 @@ class Scheduler:
 
         self.model = model
         self.scope = scope
-        self.varMap = dict()
+        self.varMap: Dict[Var, Any] = dict()
         self.parent = parent
         self.engine = engine
         self.scoreboard = ScoreBoard()
         self.windowSize = 0
         self.windowStall = None
-        self.startTasks = None
-        self.endTasks = None
+        self.startTasks: Optional[TaskNode] = None
+        self.endTasks: Optional[TaskNode] = None
         self.lock = threading.Lock()
         self.condVar = threading.Condition()
         self.dummyVar = Var("Dummy$$$$$")
         self.nextId = 1
-        self.children = set()
+        self.children: Set['Scheduler'] = set()
         self.childrenLock = threading.Lock()
 
     def _getNewId(self) -> int:
@@ -511,7 +516,7 @@ class Scheduler:
         merge accesses from object source in current and all parent schedulers
         """
         scheduler = self
-        while scheduler != None:
+        while scheduler is not None:
             with scheduler.lock:
                 scheduler.scoreboard.mergeAccessQueues(source, dest)
             scheduler = scheduler.parent
@@ -579,11 +584,11 @@ class Scheduler:
                 if child.future.cancel():
                     return child
                 descendent = child.getPendingChild()
-                if descendent != None:
+                if descendent is not None:
                     return descendent
 
 
-    def addTask(self, node: GraphNode, vm: VarMap = None, varMap: dict = None):
+    def addTask(self, node: GraphNode, vm: Optional[VarMap] = None, varMap: Optional[dict] = None):
         """
         Adds a new task for the scheduler to run.
         node - a GraphNode to run
@@ -596,7 +601,7 @@ class Scheduler:
             varMap = dict()
         taskNode = TaskNode(node, varMap)
 
-        if self.endTasks == None:
+        if self.endTasks is None:
             self.startTasks = taskNode
         else:
             self.endTasks.setNext(taskNode)
@@ -609,9 +614,11 @@ class Scheduler:
         self._checkForMutables(node, varMap)
         
         if (self.startTasks == self.endTasks):
-            self._runTask(self.endTasks)
+            runTask = self.endTasks
+            assert runTask is not None
+            self._runTask(runTask)
             
-    def _checkVarForMutable(self, varMap: dict, writeSet: set, currSchedulerTask: ScheduleNode, v):
+    def _checkVarForMutable(self, varMap: dict, writeSet: Set[Var], currSchedulerTask: ScheduleNode, v):
         """
         Check whether v is a mutable that we need to revoke ownership
         for.
@@ -640,13 +647,13 @@ class Scheduler:
             if mutTask == currSchedulerTask:
                 value.setOwningTask(dummyTask)
             
-    def _checkForMutables(self, node: GraphNode, varMap: dict):
+    def _checkForMutables(self, node: Optional[GraphNode], varMap: dict):
         """
         Handle and references to mutable objects.  If a mutable
         object is owned by the parent task, revoke ownership.
         """
 
-        writeSet = set()
+        writeSet: Set[Var] = set()
         currSchedulerTask = getCurrentTask()
         while node is not None:
             for var in node.getReadSet():
@@ -673,7 +680,7 @@ class Scheduler:
 
         self.scan(task.getNode())
 
-    def runPythonAgent(self, pythonFunc, pos: list = None, kw: dict = None, numOuts: int = 0, vmap: VarMap = None):
+    def runPythonAgent(self, pythonFunc, pos: Optional[list] = None, kw: Optional[dict] = None, numOuts: int = 0, vmap: Optional[VarMap] = None):
         out = None
         if numOuts > 0:
             out = list()
@@ -684,7 +691,7 @@ class Scheduler:
             return out[0]
         return out
         
-    def runLLMAgent(self, msg: MsgSeq = None, conversation: Var = None, callVar: Var = None, tools: list[Tool] = None, formatFunc = None, pos: list = None, kw: dict = None, model: LLMModel = None, vmap: VarMap = None):
+    def runLLMAgent(self, msg: Optional[MsgSeq] = None, conversation: Union[Var, None, 'agentgraph.core.conversation.Conversation'] = None, callVar: Optional[Var] = None, tools: Optional['agentgraph.core.tools.ToolList'] = None, formatFunc = None, pos: Optional[list] = None, kw: Optional[dict] = None, model: Optional[LLMModel] = None, vmap: Optional[VarMap] = None):
         outVar = Var()
         self.addTask(createLLMAgent(outVar, msg, conversation, callVar, tools, formatFunc, pos, kw, model).start, vmap)
         return outVar
@@ -761,13 +768,16 @@ class Scheduler:
             if (depCount == 0):
                 self.startNestedTask(scheduleNode)
                 
-            node = node.getNext(0)
-                
-            if node == None:
+            nextNode = node.getNext(0)
+            if nextNode is not None:
+                #Keep traversing current list
+                node = nextNode
+            else:
                 # Remove current task
                 task = self.startTasks
+                assert task is not None
                 self.startTasks = task.getNext()
-                if self.startTasks == None:
+                if self.startTasks is None:
                     # No more work left so return
                     self.endTasks = None
                     return
@@ -843,8 +853,8 @@ class Scheduler:
             self.scoreboard.removeWaiter(r, node, self)
 
 
-        if self.windowSize < agentgraph.config.MAX_WINDOW_SIZE and self.windowStall != None:
-            if self.windowStall != None:
+        if self.windowSize < agentgraph.config.MAX_WINDOW_SIZE and self.windowStall is not None:
+            if self.windowStall is not None:
                 tmp = self.windowStall
                 self.windowStall = None
                 self.scan(tmp.getGraphNode())
@@ -910,7 +920,9 @@ class Scheduler:
             
             inVarMap = scheduleNode.getInVarMap()            
             child = Scheduler(self.model, scheduleNode, self, self.engine)
-            child.addTask(graphnode.getStart(), None, varMap = inVarMap)
+            firstNode = graphnode.getStart()
+            assert firstNode is not None
+            child.addTask(firstNode, None, varMap = inVarMap)
         else:
             #Schedule the job
             self.engine.queueItem(scheduleNode, self)

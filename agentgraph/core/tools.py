@@ -3,13 +3,14 @@ from agentgraph.core.mutable import Mutable
 from agentgraph.core.prompts import Prompt
 from agentgraph.core.reflect import funcToToolSig, Closure
 from agentgraph.core.var import Var
+import agentgraph
 from dataclasses import dataclass
 import json
 from inspect import ismethod
-from typing import Callable, Union
+from typing import Callable, Optional, Union
     
 class Tool:
-    def __init__(self, handler: Callable):
+    def __init__(self, handler: Optional[Callable]):
         self.handler = handler
         self.readset = set()
         self.refs = set()
@@ -29,15 +30,16 @@ class Tool:
                     self.refs.add(val)
 
     def exec(self, varsMap: dict) -> dict:
-        pass
-
+        assert False
+        return dict()
+        
     def getReadSet(self) -> set:
         return self.readset
 
     def getRefs(self) -> set:
         return self.refs
 
-    def getHandler(self) -> callable:
+    def getHandler(self) -> Optional[Callable]:
         return self.handler
 
 class ToolReflect(Tool):
@@ -97,7 +99,9 @@ class ToolList(Mutable):
         for tool in self.tools:
             toolSig = tool.exec(varsMap)
             toolsParam.append(toolSig)
-            handlers[toolSig["function"]["name"]] = tool.getHandler() 
+            handler = tool.getHandler()
+            assert handler is not None
+            handlers[toolSig["function"]["name"]] = handler 
         return toolsParam, handlers
 
     def getReadSet(self) -> set:
@@ -116,5 +120,5 @@ class ToolList(Mutable):
 def toolsFromFunctions(funcs: list[Callable]):
     return ToolList(list(map(ToolReflect, funcs)))
 
-def toolsFromPrompts(loader: 'Prompts', PromptMap: dict):
+def toolsFromPrompts(loader: 'agentgraph.core.prompts.Prompts', PromptMap: dict):
     return ToolList([ToolPrompt(loader.loadPrompt(k), handler=v) for k, v in PromptMap.items()])

@@ -1,6 +1,6 @@
 from functools import wraps
 import inspect
-from typing import Callable
+from typing import Any, Callable, Dict
 import re
 
 class Closure:
@@ -22,7 +22,7 @@ def asClosure(argMap: dict):
     return inner
 
 def funcToToolSig(func: Callable) -> dict:
-    func_dict = {"name": func.__name__}
+    func_dict: Dict[str, Any] = {"name": func.__name__}
     sig = inspect.signature(func)
     params = sig.parameters
     ignore = set(func.argMap.keys()) if type(func) is Closure else set()

@@ -5,11 +5,11 @@ class SnapshotVar(Var):
     def __init__(self, var: Var):
         self.var = var
 
-    def getVar() -> Var:
+    def getVar(self) -> Var:
         return self.var
 
-    def isMutable() -> bool:
+    def isMutable(self) -> bool:
         return True
 
-    def isRead() -> bool:
+    def isRead(self) -> bool:
         return True

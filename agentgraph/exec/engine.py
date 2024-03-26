@@ -14,7 +14,7 @@ class Engine:
         self.event_loop_thread = Thread(target=self.run_event_loop)
         self.event_loop_thread.start()
         future = asyncio.run_coroutine_threadsafe(create_queue(), self.loop)
-        self.queue = future.result()
+        self.queue: janus.Queue = future.result()
         self.concurrency = concurrency
         self.threadPool = concurrent.futures.ThreadPoolExecutor(max_workers = concurrency)
         self.pendingPythonTaskLock = Lock()
@@ -103,6 +103,6 @@ def threadrun(engine, scheduleNode, scheduler):
         print(traceback.format_exc())
 
 async def create_queue() -> janus.Queue:
-    queue = janus.Queue()
+    queue: janus.Queue = janus.Queue()
     return queue
             

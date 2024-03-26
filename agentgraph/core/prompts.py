@@ -3,6 +3,7 @@ from agentgraph.core.jinjamanager import JinjaManager
 from agentgraph.core.mutable import Mutable
 from agentgraph.core.msgseq import MsgSeq
 from agentgraph.core.var import Var
+from typing import Optional, Set, Union
 
 class Prompt(MsgSeq):
     def __init__(self, prompts: 'Prompts', name: str, vals: dict):
@@ -28,7 +29,7 @@ class Prompt(MsgSeq):
         return val
 
     def getReadSet(self) -> set:
-        readset = set()
+        readset : Set[Union[Var, Mutable]] = set()
         for name in self.vals:
             val = self.vals[name]
             if isinstance(val, Var):
@@ -38,7 +39,7 @@ class Prompt(MsgSeq):
         return readset
 
 class Prompts(JinjaManager):
-    def loadPrompt(self, prompt_name: str, vals: dict = None) -> Prompt:
-        if vals == None:
+    def loadPrompt(self, prompt_name: str, vals: Optional[dict] = None) -> Prompt:
+        if vals is None:
             vals = dict()
         return Prompt(self, prompt_name, vals)

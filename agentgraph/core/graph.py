@@ -2,7 +2,7 @@ import asyncio
 import json
 import traceback
 import threading
-from typing import Callable
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 from agentgraph.core.conversation import Conversation
 from agentgraph.data.filestore import FileStore
@@ -22,12 +22,12 @@ class GraphNode:
     def __init__(self):
         self._next = [None]
 
-    def setNext(self, index: int, n: 'GraphNode'):
+    def setNext(self, index: int, n: Optional['GraphNode']):
         """Sets index'th successor node in CFG"""
         
         self._next[index] = n
         
-    def getNext(self, index: int) -> 'GraphNode':
+    def getNext(self, index: int) -> Optional['GraphNode']:
         """Get index'th successor node in CFG"""
         
         return self._next[index]
@@ -46,7 +46,7 @@ class GraphVarWait(GraphNode):
     def __init__(self, readList: list, condVar: threading.Condition):
         super().__init__()
         self._readList = readList
-        self._valMap = dict()
+        self._valMap : Dict[Var, Any] = dict()
         self._condVar = condVar
         self._done = False
 
@@ -85,13 +85,13 @@ class GraphVarWait(GraphNode):
 class GraphNested(GraphNode):
     """Nested CFG Node."""
     
-    def __init__(self, _start: GraphNode):
+    def __init__(self, _start: Optional[GraphNode]):
         super().__init__()
         self._start = _start
-        self._readVars = None
-        self._writeVars = None
+        self._readVars : List[Any] = list()
+        self._writeVars : List[Any] = list()
 
-    def getStart(self) -> GraphNode:
+    def getStart(self) -> Optional[GraphNode]:
         """Gets first operation from child CFG."""
         
         return self._start
@@ -111,7 +111,7 @@ class GraphNested(GraphNode):
 class GraphLLMAgent(GraphNode):
     """Run some action.  This is a LLM Agent."""
     
-    def __init__(self, outVar: Var, conversation: Var, model: LLMModel, msg: MsgSeq, formatFunc, callVar: Var, tools: ToolList, pos: list, kw: dict):
+    def __init__(self, outVar: Var, conversation: Union[Var, Conversation, None], model: Optional[LLMModel], msg: Optional[MsgSeq], formatFunc, callVar: Optional[Var], tools: Optional[ToolList], pos: Optional[list], kw: Optional[dict]):
         super().__init__()
         self.outVar = outVar
         self.callVar = callVar
@@ -120,19 +120,19 @@ class GraphLLMAgent(GraphNode):
         self.msg = msg
         self.formatFunc = formatFunc
         self.tools = tools
-        self.pos = pos if pos != None else []
-        self.kw = kw if kw != None else {}
+        self.pos = pos if pos is not None else []
+        self.kw = kw if kw is not None else {}
         
     def getReadSet(self) -> list:
         l = list(self.kw.values())
         l.extend(self.pos)
         if self.conversation is not None:
             l.append(self.conversation)
-        if self.msg != None:
+        if self.msg is not None:
             for var in self.msg.getReadSet():
                 if not var in l:
                     l.append(var)
-        if self.tools != None:
+        if self.tools is not None:
             l.append(self.tools)
             for var in self.tools.getReadSet():
                 if not var in l:
@@ -146,7 +146,7 @@ class GraphLLMAgent(GraphNode):
         """Execute LLM Agent.  varMap maps Vars to the values that
         should be used for the execution."""
 
-        if self.msg != None:
+        if self.msg is not None:
             try:
                 inConv = self.msg.exec(varMap)
             except Exception as e:
@@ -176,7 +176,7 @@ class GraphLLMAgent(GraphNode):
             print("MODEL Request:\n", inConv)
         # Call the model
 
-        if self.tools != None:
+        if self.tools is not None:
             try:
                 toolsParam, handlers = self.tools.exec(varMap)
             except Exception as e:
@@ -246,7 +246,7 @@ def handleCalls(calls: list, handlers: dict, varMap: dict):
 class GraphPythonAgent(GraphNested):
     """Run some action.  This is a Python Agent."""
     
-    def __init__(self, pythonFunc, pos: list, kw: dict, out: list):
+    def __init__(self, pythonFunc, pos: Optional[list], kw: Optional[dict], out: Optional[list]):
         """inVars is a map from names to Var objects that provide
         values for those variables.  The python function will be
         passed a dict that maps these names to values.
@@ -259,9 +259,9 @@ class GraphPythonAgent(GraphNested):
         
         super().__init__(None)
         self.pythonFunc = pythonFunc
-        self.pos = pos if pos != None else []
-        self.kw = kw if kw != None else {}
-        self.out = out if out != None else []
+        self.pos = pos if pos is not None else []
+        self.kw = kw if kw is not None else {}
+        self.out = out if out is not None else []
 
     def getReadSet(self) -> list:
         return list(self.kw.values()) + self.pos
@@ -276,17 +276,17 @@ class GraphPythonAgent(GraphNested):
         executing the python agent."""
 
         # Build positional variables
-        posList = list()
+        posList : List[Any] = list()
         for o in self.pos:
             if isinstance(o, agentgraph.core.vardict.VarDict):
-                news = dict()
+                newdict = dict()
                 for key, value in o.items():
                     if isinstance(value, agentgraph.core.var.Var):
-                        news[key] = varMap[value]
+                        newdict[key] = varMap[value]
                     else:
-                        news[key] = value
+                        newdict[key] = value
 
-                posList.append(news)
+                posList.append(newdict)
             elif isinstance(o, agentgraph.core.varset.VarSet):
                 news = set()
                 for v in o:
@@ -304,17 +304,17 @@ class GraphPythonAgent(GraphNested):
         # First, compose dictionary for inVars (str -> Var) and varMap
         # (Var -> Value) to generate inMap (str -> Value)
         
-        inMap = dict()
+        inMap : Dict[str, Any] = dict()
         for name, o in self.kw:
             if isinstance(o, agentgraph.core.vardict.VarDict):
-                news = dict()
+                newdict = dict()
                 for key, value in o.items():
                     if isinstance(value, agentgraph.core.var.Var):
-                        news[key] = varMap[value]
+                        newdict[key] = varMap[value]
                     else:
-                        news[key] = value
+                        newdict[key] = value
 
-                inMap[name] = news
+                inMap[name] = newdict
             elif isinstance(o, agentgraph.core.varset.VarSet):
                 news = set()
                 for v in o:
@@ -376,59 +376,59 @@ class VarMap:
     def __init__(self):
         self._varMap = dict()
 
-    def _getVariable(self, name: str) -> Var:
+    def _getVariable(self, name: Optional[str]) -> Var:
         return Var(name)
 
     def getVarMap(self) -> dict:
         return self._varMap
         
-    def mapToConversation(self, name: str = None, val: Conversation = None) -> Var:
+    def mapToConversation(self, name: Optional[str] = None, val: Optional[Conversation] = None) -> Var:
         var = self._getVariable(name)
         if val is None:
             val = Conversation()
         self._varMap[var] = val
         return var
 
-    def mapToFileStore(self, name: str = None, val: FileStore = None) -> Var:
+    def mapToFileStore(self, name: Optional[str] = None, val: Optional[FileStore] = None) -> Var:
         var = self._getVariable(name)
         if val is None:
             val = FileStore()
         self._varMap[var] = val
         return var
 
-    def mapToToolList(self, name: str = None, val: ToolList = None) -> Var:
-        var = self._getMutVariable(name)
+    def mapToToolList(self, name: Optional[str] = None, val: Optional[ToolList] = None) -> Var:
+        var = self._getVariable(name)
         if val is None:
             val = ToolList()
         self._varMap[var] = val
         return var
 
-    def mapToMutable(self, name: str = None, val: Mutable = None) -> Var:
-        var = self._getMutVariable(name)
+    def mapToMutable(self, name: Optional[str] = None, val: Optional[Mutable] = None) -> Var:
+        var = self._getVariable(name)
         self._varMap[var] = val
         return var
     
-    def mapToBool(self, name: str = None, val: bool = False) -> Var:
+    def mapToBool(self, name: Optional[str] = None, val: bool = False) -> Var:
         var = self._getVariable(name)
         self._varMap[var] = val
         return var
 
-    def mapToNone(self, name: str = None) -> Var:
+    def mapToNone(self, name: Optional[str] = None) -> Var:
         var = self._getVariable(name)
         self._varMap[var] = None
         return var
 
-    def mapToInt(self, name: str = None, val: int = 0) -> Var:
+    def mapToInt(self, name: Optional[str] = None, val: int = 0) -> Var:
         var = self._getVariable(name)
         self._varMap[var] = val
         return var
 
-    def mapToString(self, name: str = None, val: str = "") -> Var:
+    def mapToString(self, name: Optional[str] = None, val: str = "") -> Var:
         var = self._getVariable(name)
         self._varMap[var] = val
         return var
     
-def createLLMAgent(outVar: Var, msg: MsgSeq = None, conversation: Var = None, callVar: Var = None, tools: ToolList = None, formatFunc = None, pos: list = None, kw: dict = None, model: LLMModel = None) -> GraphPair:
+def createLLMAgent(outVar: Var, msg: Optional[MsgSeq] = None, conversation: Union[Conversation, Var, None] = None, callVar: Optional[Var] = None, tools: Optional[ToolList] = None, formatFunc = None, pos: Optional[list] = None, kw: Optional[dict] = None, model: Optional[LLMModel] = None) -> GraphPair:
     """Creates a LLM agent task.
 
     Arguments:
@@ -450,7 +450,7 @@ def createLLMAgent(outVar: Var, msg: MsgSeq = None, conversation: Var = None, ca
     llmAgent = GraphLLMAgent(outVar, conversation, model, msg, formatFunc, callVar, tools, pos, kw)
     return GraphPair(llmAgent, llmAgent)
 
-def createPythonAgent(pythonFunc, pos: list = None, kw: dict = None, out: list = None) -> GraphPair:
+def createPythonAgent(pythonFunc, pos: Optional[list] = None, kw: Optional[dict] = None, out: Optional[list] = None) -> GraphPair:
     """Creates a Python agent task.
     
     Arguments:
@@ -470,7 +470,7 @@ def createSequence(list) -> GraphPair:
     for l in list[1:]:
         last.setNext(0, l.start)
         last = l.end
-        return GraphPair(start, last)
+    return GraphPair(start, last)
 
 def createRunnable(pair: GraphPair) -> GraphNested:
     """Encapsulates a GraphPair to make it runnable"""
@@ -482,21 +482,21 @@ def createRunnable(pair: GraphPair) -> GraphNested:
     graph.setWriteVars(writeSet)
     return graph
 
-def analyzeLinear(start: GraphNode, end: GraphNode) -> tuple[set, set]:
+def analyzeLinear(start: GraphNode, end: GraphNode) -> tuple[list, list]:
     """ This function analyzes reads/writes of linear chains"""
 
-    node = start
-    list = []
-    while node != None:
-        list.append(node)
+    node : Optional[GraphNode] = start
+    mylist = []
+    while node is not None:
+        mylist.append(node)
         node = node.getNext(0)
 
-    readSet = set()
-    writeSet = set()
-    for i in range(len(list) - 1, -1, -1):
-        n = list[i]
+    readSet: Set[Any] = set()
+    writeSet: Set[Any] = set()
+    for i in range(len(mylist) - 1, -1, -1):
+        n = mylist[i]
         writeSet.update(n.getWriteVars())
         readSet.difference_update(n.getWriteVars())
         readSet.update(n.getReadSet())
 
-    return (readSet, writeSet)
+    return list(readSet), list(writeSet)

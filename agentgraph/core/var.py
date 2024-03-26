@@ -1,9 +1,10 @@
+from typing import Optional
 from agentgraph.core.msgseq import MsgSeq
 
 varNameCount = 0
 
 class Var(MsgSeq):
-    def __init__(self, name: str = None):
+    def __init__(self, name: Optional[str] = None):
         super().__init__()
         if name is None:
             global varNameCount
