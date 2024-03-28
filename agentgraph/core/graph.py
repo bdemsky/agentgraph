@@ -298,6 +298,12 @@ class GraphPythonAgent(GraphNested):
                 posList.append(news)
             elif isinstance(o, agentgraph.core.var.Var):
                 posList.append(varMap[o])
+            elif isinstance(o, agentgraph.core.mutable.ReadOnly):
+                v = o.getMutable()
+                if isinstance(v, agentgraph.core.var.Var):
+                    posList.append(varMap[v].getReadOnlyProxy())
+                else:
+                    posList.append(v.getReadOnlyProxy())
             else:
                 posList.append(o)
         
@@ -326,6 +332,12 @@ class GraphPythonAgent(GraphNested):
                 inMap[name] = news
             elif isinstance(o, agentgraph.core.var.Var):
                 inMap[name] = varMap[o]
+            elif isinstance(o, agentgraph.core.mutable.ReadOnly):
+                v = o.getMutable()
+                if isinstance(v, agentgraph.core.var.Var):
+                    inMap[name] = varMap[v].getReadOnlyProxy()
+                else:
+                    inMap[name] = v.getReadOnlyProxy()
             else:
                 inMap[name] = o
                 

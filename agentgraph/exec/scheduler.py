@@ -82,16 +82,16 @@ class ScheduleNode:
         
         return self.node
 
-    def addWaiter(self, var: Var, node):
+    def addWaiter(self, var: Var, node, reader: bool):
         """Add a schedulenode that is waiting on us for value of the
-        variable var."""
+        variable var and whether it is a reader."""
         
         if var in self.waitMap:
             list = self.waitMap[var]
         else:
             list = []
             self.waitMap[var] = list
-        list.append(node)
+        list.append((node, reader))
 
     def getWaiters(self) -> dict:
         """Returns a map of waiters.  This maps maps our output
@@ -521,7 +521,7 @@ class Scheduler:
                 scheduler.scoreboard.mergeAccessQueues(source, dest)
             scheduler = scheduler.parent
         
-    def objAccess(self, mutable, readonly):
+    def objAccess(self, mutable):
         """
         Waits for object access
         """
@@ -701,12 +701,15 @@ class Scheduler:
             self.finishScope()
 
     def _scanNodeVar(self, node: GraphNode, scheduleNode: ScheduleNode, var, depCount: int) -> int:
+        reader = isinstance(var, agentgraph.core.mutable.ReadOnly)
+        if reader:
+            var = var.getMutable()
         # Not a variable, so see if it is a Mutable
         if not isinstance(var, agentgraph.core.var.Var):
             if isinstance(var, agentgraph.core.mutable.Mutable):
                 # Add ref and if we are new then add it as a writer and increment depCount...
                 if scheduleNode.addRef(var):
-                    if var.isReadonly():
+                    if reader:
                         if self.scoreboard.addReader(var, scheduleNode) == False:
                             depCount += 1
                     else:
@@ -723,14 +726,14 @@ class Scheduler:
             # Variable mapped to schedule node, which means we
             # haven't executed the relevant computation
             depCount += 1
-            lookup.addWaiter(var, scheduleNode)
+            lookup.addWaiter(var, scheduleNode, reader)
         else:
             # We have the value
             scheduleNode.setInVarVal(var, lookup)
             if isinstance(lookup, agentgraph.core.mutable.Mutable):
                 # If the variable is mutable, add ourselves.
                 try:
-                    depCount += self.handleReference(scheduleNode, var, lookup)
+                    depCount += self.handleReference(scheduleNode, var, lookup, reader)
                 except Exception as e:
                     print('Error', e)
                     print(traceback.format_exc())
@@ -793,7 +796,7 @@ class Scheduler:
                         value = nexttask.getVarMap()[var]
                         self.varMap[var] = value   
 
-    def handleReference(self, scheduleNode: ScheduleNode, var: Var, lookup) -> int:
+    def handleReference(self, scheduleNode: ScheduleNode, var: Var, lookup, reader: bool) -> int:
         """We have a variable that references a mutable object.  So the
         variable has to be defined and we need to run it through the
         scoreboard to make sure all prior mutations are done.  This
@@ -801,11 +804,11 @@ class Scheduler:
         this heap dependency."""
         if (scheduleNode.addRef(lookup) == False):
             return 0
-        if var.isRead():
-             if self.scoreboard.addReader(lookup, scheduleNode):
-                 return 0
-             else:
-                 return 1
+        if reader:
+            if self.scoreboard.addReader(lookup, scheduleNode):
+                return 0
+            else:
+                return 1
         if self.scoreboard.addWriter(lookup, scheduleNode):
             return 0
         else:
@@ -831,12 +834,12 @@ class Scheduler:
             val = node.getOutVarVal(var)
             # Get list of waiters
             wlist = waiters[var]
-            for n in wlist:
+            for n, reader in wlist:
                 #Forward value
                 n.setInVarVal(var, val)
                 if isinstance(val, agentgraph.core.mutable.Mutable):
                     #If variable is mutable, register the heap dependence
-                    if self.handleReference(n, var, val) == 0:
+                    if self.handleReference(n, var, val, reader) == 0:
                         #Only do decrement if we didn't just transfer the count to a heap dependence
                         self.decDepCount(n)
                 else:
