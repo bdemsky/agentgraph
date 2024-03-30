@@ -283,6 +283,12 @@ class GraphPythonAgent(GraphNested):
                 for key, value in o.items():
                     if isinstance(value, agentgraph.core.var.Var):
                         newdict[key] = varMap[value]
+                    elif isinstance(value, agentgraph.core.mutable.ReadOnly):
+                        m = value.getMutable()
+                        proxy = varMap[m]._getReadOnlyProxy() if isinstance(m, agentgraph.core.var.Var) else m._getReadOnlyProxy()
+                        assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
+                            '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                        newdict[key] = proxy
                     else:
                         newdict[key] = value
 
@@ -292,6 +298,12 @@ class GraphPythonAgent(GraphNested):
                 for v in o:
                     if isinstance(v, agentgraph.core.var.Var):
                         news.add(varMap[v])
+                    elif isinstance(v, agentgraph.core.mutable.ReadOnly):
+                        m = v.getMutable()
+                        proxy = varMap[m]._getReadOnlyProxy() if isinstance(m, agentgraph.core.var.Var) else m._getReadOnlyProxy()
+                        assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
+                            '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                        news.add(proxy)
                     else:
                         news.add(v)
                     
@@ -299,11 +311,11 @@ class GraphPythonAgent(GraphNested):
             elif isinstance(o, agentgraph.core.var.Var):
                 posList.append(varMap[o])
             elif isinstance(o, agentgraph.core.mutable.ReadOnly):
-                v = o.getMutable()
-                if isinstance(v, agentgraph.core.var.Var):
-                    posList.append(varMap[v].getReadOnlyProxy())
-                else:
-                    posList.append(v.getReadOnlyProxy())
+                m = o.getMutable()
+                proxy = varMap[m]._getReadOnlyProxy() if isinstance(m, agentgraph.core.var.Var) else m._getReadOnlyProxy()
+                assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
+                    '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                posList.append(proxy)
             else:
                 posList.append(o)
         
@@ -317,6 +329,12 @@ class GraphPythonAgent(GraphNested):
                 for key, value in o.items():
                     if isinstance(value, agentgraph.core.var.Var):
                         newdict[key] = varMap[value]
+                    elif isinstance(value, agentgraph.core.mutable.ReadOnly):
+                        m = value.getMutable()
+                        proxy = varMap[m]._getReadOnlyProxy() if isinstance(m, agentgraph.core.var.Var) else m._getReadOnlyProxy()
+                        assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
+                            '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                        newdict[key] = proxy
                     else:
                         newdict[key] = value
 
@@ -326,6 +344,12 @@ class GraphPythonAgent(GraphNested):
                 for v in o:
                     if isinstance(v, agentgraph.core.var.Var):
                         news.add(varMap[v])
+                    elif isinstance(v, agentgraph.core.mutable.ReadOnly):
+                        m = v.getMutable()
+                        proxy = varMap[m]._getReadOnlyProxy() if isinstance(m, agentgraph.core.var.Var) else m._getReadOnlyProxy()
+                        assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
+                            '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                        news.add(proxy)
                     else:
                         news.add(v)
                     
@@ -333,11 +357,11 @@ class GraphPythonAgent(GraphNested):
             elif isinstance(o, agentgraph.core.var.Var):
                 inMap[name] = varMap[o]
             elif isinstance(o, agentgraph.core.mutable.ReadOnly):
-                v = o.getMutable()
-                if isinstance(v, agentgraph.core.var.Var):
-                    inMap[name] = varMap[v].getReadOnlyProxy()
-                else:
-                    inMap[name] = v.getReadOnlyProxy()
+                m = o.getMutable()
+                proxy = varMap[m]._getReadOnlyProxy() if isinstance(m, agentgraph.core.var.Var) else m._getReadOnlyProxy()
+                assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
+                    '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                inMap[name] = proxy
             else:
                 inMap[name] = o
                 
@@ -350,6 +374,8 @@ class GraphPythonAgent(GraphNested):
         index = 0
         for var in self.out:
             val = retval[index]
+            assert not isinstance(val, agentgraph.core.mutable.ReadOnlyProxy), \
+                'Cannot return an instance of ReadOnlyProxy from a Python agent'
             if isinstance(val, Var):
                 newval = scheduler.readVariable(val)
             elif isinstance(val, VarSet):

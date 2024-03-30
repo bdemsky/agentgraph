@@ -1,7 +1,7 @@
 import agentgraph
 import os
 import time
-from agentgraph.core.mutable import Mutable, ReadOnly
+from agentgraph.core.mutable import Mutable, ReadOnly, ReadOnlyProxy
 
 def createMutable(scheduler) -> list:
     print('createMutable')
@@ -14,13 +14,19 @@ def testFuncA1(scheduler, m, start) -> list:
     time.sleep(0.5)
     return []
 
+def testFuncA2(scheduler, m, start) -> list:
+    print("TestA2")
+    scheduler.runPythonAgent(testFuncA1, pos=[m, start]) # okay
+    time.sleep(2)
+    return [m] # BAD
+
 model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
 scheduler = agentgraph.getRootScheduler(model)
 start = time.time()
 
 class TestMutable(Mutable):
-    def getReadOnlyProxy(self):
-        return 'TestMutableProxy'
+    def _getReadOnlyProxy(self):
+        return ReadOnlyProxy()
 
 mutable = TestMutable()
 print('START')
@@ -50,5 +56,8 @@ scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mvar), start], vmap=varmap)
 scheduler.runPythonAgent(testFuncA1, pos=[mvar, start], vmap=varmap)
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mvar), start], vmap=varmap)
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mvar), start], vmap=varmap)
+mvar.getValue()
+
+#scheduler.runPythonAgent(testFuncA2, pos=[ReadOnly(mvar), start], vmap=varmap, numOuts=1) # BAD
 
 scheduler.shutdown()

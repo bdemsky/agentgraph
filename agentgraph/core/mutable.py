@@ -93,12 +93,15 @@ class Mutable:
     def _snapshot(self):
         pass
     
-    def getReadOnlyProxy(self):
+    def _getReadOnlyProxy(self):
         raise NotImplementedError
 
 class ReadOnly:
-    def __init__(self, mutable: 'Union[Mutable, Var]'):
+    def __init__(self, mutable: 'Union[Mutable, agentgraph.core.var.Var]'):
         self._mutable = mutable
     
     def getMutable(self):
         return self._mutable
+
+class ReadOnlyProxy:
+    pass
