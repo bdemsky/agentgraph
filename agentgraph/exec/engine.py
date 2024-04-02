@@ -9,17 +9,17 @@ from threading import Thread, Lock
 from agentgraph.core.graph import GraphNode, GraphPair, GraphNested, VarMap
 
 class Engine:
-    def __init__(self, concurrency: int = agentgraph.config.THREAD_POOL_DEFAULT_SIZE):
+    def __init__(self, concurrency: int = 0):
         self.loop = asyncio.new_event_loop()
         self.event_loop_thread = Thread(target=self.run_event_loop)
         self.event_loop_thread.start()
         future = asyncio.run_coroutine_threadsafe(create_queue(), self.loop)
         self.queue: janus.Queue = future.result()
-        self.concurrency = concurrency
-        self.threadPool = concurrent.futures.ThreadPoolExecutor(max_workers = concurrency)
+        self.concurrency = concurrency if concurrency > 0 else agentgraph.config.THREAD_POOL_DEFAULT_SIZE
+        self.threadPool = concurrent.futures.ThreadPoolExecutor(max_workers = self.concurrency)
         self.pendingPythonTaskLock = Lock()
         self.pendingPythonTaskCount = 0 # number of tasks pending in thread pool
-        for i in range(concurrency):
+        for i in range(self.concurrency):
             asyncio.run_coroutine_threadsafe(self.worker(i), self.loop)
         
     def run_event_loop(self):

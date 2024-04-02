@@ -550,7 +550,7 @@ class Scheduler:
             while not gvar.isDone():
                 if self.engine.getPendingPythonTaskCount() > 1:
                     self.condVar.release()
-                    taskStolen = false
+                    taskStolen = False
                     try:
                         taskStolen = self.stealChildTask()
                     finally:
