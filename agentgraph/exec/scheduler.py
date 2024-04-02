@@ -521,13 +521,16 @@ class Scheduler:
                 scheduler.scoreboard.mergeAccessQueues(source, dest)
             scheduler = scheduler.parent
         
-    def objAccess(self, mutable):
+    def objAccess(self, mutable, readonly=False):
         """
         Waits for object access
         """
         gvar = GraphVarWait([self.dummyVar], self.condVar)
         varDict = dict()
-        varDict[self.dummyVar] = mutable.getRootObject()
+        if readonly:
+            varDict[self.dummyVar] = agentgraph.core.mutable.ReadOnly(mutable.getRootObject())
+        else:
+            varDict[self.dummyVar] = mutable.getRootObject()
         self.addTask(gvar, None, varDict)
         self.waitOnGvar(gvar)
         
@@ -730,6 +733,10 @@ class Scheduler:
         else:
             # We have the value
             scheduleNode.setInVarVal(var, lookup)
+            if isinstance(lookup, agentgraph.core.mutable.ReadOnly):
+                lookup = lookup.getMutable()
+                reader = True
+            
             if isinstance(lookup, agentgraph.core.mutable.Mutable):
                 # If the variable is mutable, add ourselves.
                 try:

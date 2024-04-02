@@ -89,6 +89,19 @@ class Mutable:
         getCurrentScheduler().objAccess(root)
         # We own this mutable now
         root._owner = currTask
+    
+    def waitForReadAccess(self):
+        from agentgraph.exec.scheduler import getCurrentTask, getCurrentScheduler
+        currTask = getCurrentTask()
+        root = self.getRootObject()
+
+        # See if we already own this mutable
+        if root._owner == currTask:
+            return
+        # No, so wait for access
+        getCurrentScheduler().objAccess(root, True)
+        # We own this mutable now
+        # root._owner = currTask
 
     def _snapshot(self):
         pass
