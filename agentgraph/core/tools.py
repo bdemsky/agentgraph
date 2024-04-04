@@ -87,7 +87,7 @@ class ToolList(Mutable):
         super().__init__(owner)
         for tool in tools:
             self.takeToolOwnership(tool)
-        self.tools = tools
+        self._tools = tools
 
     def takeToolOwnership(self, tool):
         for ref in tool.getRefs():
@@ -96,7 +96,7 @@ class ToolList(Mutable):
     def exec(self, varsMap: dict) -> tuple[list[dict], dict[str, Callable]]:
         toolsParam = []
         handlers = {}
-        for tool in self.tools:
+        for tool in self._tools:
             toolSig = tool.exec(varsMap)
             toolsParam.append(toolSig)
             handler = tool.getHandler()
@@ -106,16 +106,18 @@ class ToolList(Mutable):
 
     def getReadSet(self) -> set:
         readSet = set()
-        for tool in self.tools:
+        for tool in self._tools:
             readSet |= tool.getReadSet()
         return readSet
 
     def append(self, tool: Tool):
+        self.waitForAccess()
         self.takeToolOwnership(tool)
-        self.tools.append(tool)
+        self._tools.append(tool)
 
     def pop(self, *args) -> Tool:
-        return self.tools.pop(*args)
+        self.waitForAccess()
+        return self._tools.pop(*args)
 
 def toolsFromFunctions(funcs: list[Callable]):
     return ToolList(list(map(ToolReflect, funcs)))
