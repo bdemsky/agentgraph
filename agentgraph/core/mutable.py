@@ -117,4 +117,4 @@ class ReadOnly:
         return self._mutable
 
 class ReadOnlyProxy:
-    pass
+    _mutable = None

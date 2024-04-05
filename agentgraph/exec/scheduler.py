@@ -204,8 +204,18 @@ class ScoreBoardNode:
             elif waiter.getId() > writer_id:
                 after_write.addWaiter(waiter)
 
-        before_write.setNext(writer)
-        writer.setNext(after_write)
+        # in case the writer is at the start or end of the reader
+        # id range and the before/after node is empty
+        if before_write.idRange != None:
+            before_write.setNext(writer)
+        else:
+            before_write = writer
+        
+        if after_write.idRange != None:
+            writer.setNext(after_write)
+        else:
+            after_write = writer
+
         return before_write, after_write
 
 
@@ -358,6 +368,55 @@ class ScoreBoard:
         # variable resolution.  But then we should be after the
         # variable assignment task, and it has not released its heap
         # references yet.
+        raise RuntimeError("Impossible case")
+
+
+    def changeToWriter(self, object, node: ScheduleNode):
+        """Change existing node from reader to writer. Returns
+        True if there is no conflict blocking execution or if
+        no change was made."""
+        root = object.getRootObject()
+        # Reference should already been previously added
+        start, end = self.accesses[root]
+
+        id = node.getId()
+        curr = end
+
+        while curr is not None:
+            range = curr.getIdRange()
+            if id > range[1]:
+                raise RuntimeError("Impossible case")
+            elif id >= range[0]:
+                assert node in curr.getWaiters()
+                if not curr.getIsReader():
+                    # Node was already a writer
+                    return True
+                if len(curr.getWaiters()) == 1:
+                    # Schedule node is the only one, just change node to writer
+                    curr.isReader = False
+                    return True
+                
+                # Split the node
+                scoreboardnode = ScoreBoardNode(False)
+                scoreboardnode.addWaiter(node)
+                first, last = ScoreBoardNode.split_node(curr, scoreboardnode)
+                pred = curr.getPred()
+                succ = curr.getNext()
+                if pred is None:
+                    self.accesses[root] = (first, end)
+                else:
+                    pred.setNext(first)
+
+                if succ is None:
+                    self.accesses[root] = (first if pred is None else start, last)
+                else:
+                    last.setNext(succ)
+                # Return false if it now has to wait since it is no longer a reader
+                # unless it previously was already waiting
+                return start != curr or first != scoreboardnode
+
+            curr = curr.getPred()
+
         raise RuntimeError("Impossible case")
 
 
@@ -704,9 +763,14 @@ class Scheduler:
             self.finishScope()
 
     def _scanNodeVar(self, node: GraphNode, scheduleNode: ScheduleNode, var, depCount: int) -> int:
-        reader = isinstance(var, agentgraph.core.mutable.ReadOnly)
-        if reader:
+        if isinstance(var, agentgraph.core.mutable.ReadOnly):
             var = var.getMutable()
+            reader = True
+        elif isinstance(var, agentgraph.core.mutable.ReadOnlyProxy):
+            var = var._mutable
+            reader = True
+        else:
+            reader = False
         # Not a variable, so see if it is a Mutable
         if not isinstance(var, agentgraph.core.var.Var):
             if isinstance(var, agentgraph.core.mutable.Mutable):
@@ -717,6 +781,11 @@ class Scheduler:
                             depCount += 1
                     else:
                         if self.scoreboard.addWriter(var, scheduleNode) == False:
+                            depCount += 1
+                else:
+                    if not reader:
+                        # Make sure that ref wasn't previously added as a reader
+                        if self.scoreboard.changeToWriter(var, scheduleNode) == False:
                             depCount += 1
             return depCount
 
@@ -735,6 +804,9 @@ class Scheduler:
             scheduleNode.setInVarVal(var, lookup)
             if isinstance(lookup, agentgraph.core.mutable.ReadOnly):
                 lookup = lookup.getMutable()
+                reader = True
+            elif isinstance(lookup, agentgraph.core.mutable.ReadOnly):
+                lookup = lookup._mutable
                 reader = True
             
             if isinstance(lookup, agentgraph.core.mutable.Mutable):
@@ -810,7 +882,11 @@ class Scheduler:
         function returns the number of unresolved dependences due to
         this heap dependency."""
         if (scheduleNode.addRef(lookup) == False):
-            return 0
+            if not reader:
+                if self.scoreboard.changeToWriter(lookup, scheduleNode):
+                    return 0
+                else:
+                    return 1
         if reader:
             if self.scoreboard.addReader(lookup, scheduleNode):
                 return 0

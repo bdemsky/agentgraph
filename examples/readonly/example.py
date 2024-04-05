@@ -10,7 +10,7 @@ def createMutable(scheduler) -> list:
 
 def testFuncA1(scheduler, m, start) -> list:
     time.sleep(0.5)
-    print("TestA", time.time() - start, m)
+    print("TestA", f'{time.time() - start:.2f}', m)
     time.sleep(0.5)
     return []
 
@@ -20,43 +20,87 @@ def testFuncA2(scheduler, m, start) -> list:
     time.sleep(2)
     return [m] # BAD
 
+def testFuncA3(scheduler, ro, m, start) -> list:
+    time.sleep(0.5)
+    print("TestA3", f'{time.time() - start:.2f}', ro, m)
+    time.sleep(0.5)
+    return []
+
 model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
 scheduler = agentgraph.getRootScheduler(model)
 start = time.time()
 
+class TestReadOnlyProxy(ReadOnlyProxy):
+    def __init__(self, mutable):
+        self._mutable = mutable
+    
+    def __repr__(self):
+        return 'ReadOnlyProxy'
+
 class TestMutable(Mutable):
     def _getReadOnlyProxy(self):
-        return ReadOnlyProxy()
+        return TestReadOnlyProxy(self)
+    
+    def __repr__(self):
+        return 'Mutable'
 
 mutable = TestMutable()
 print('START')
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mutable), mutable, start])
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mutable), start])
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mutable), ReadOnly(mutable), start])
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mutable), mutable, start])
+scheduler.runPythonAgent(testFuncA3, pos=[mutable, mutable, start])
+scheduler.runPythonAgent(testFuncA3, pos=[mutable, ReadOnly(mutable), start])
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mutable), start])
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mutable), mutable, start])
+mutable.waitForReadAccess()
+print('TestB', time.time() - start)
+mutable.waitForAccess()
+
+proxy = mutable._getReadOnlyProxy()
+scheduler.runPythonAgent(testFuncA3, pos=[proxy, mutable, start])
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mutable), start])
-scheduler.runPythonAgent(testFuncA1, pos=[mutable, start])
+scheduler.runPythonAgent(testFuncA3, pos=[proxy, ReadOnly(mutable), start])
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mutable), mutable, start])
+scheduler.runPythonAgent(testFuncA3, pos=[mutable, mutable, start])
+scheduler.runPythonAgent(testFuncA3, pos=[mutable, proxy, start])
+scheduler.runPythonAgent(testFuncA1, pos=[proxy, start])
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mutable), start])
-scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mutable), start])
+scheduler.runPythonAgent(testFuncA3, pos=[proxy, mutable, start])
 mutable.waitForReadAccess()
 print('TestB', time.time() - start)
 mutable.waitForAccess()
 
 mvar = scheduler.runPythonAgent(createMutable, numOuts=1)
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mvar), mvar, start])
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mvar), start])
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mvar), start])
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mvar), mvar, start])
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mvar), start])
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mvar), mvar, start])
 scheduler.runPythonAgent(testFuncA1, pos=[mvar, start])
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mvar), mvar, start])
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mvar), mvar, start])
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mvar), start])
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mvar), start])
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mvar), mvar, start])
 mvar.getValue()
 
 varmap = agentgraph.VarMap()
 mvar = varmap.mapToMutable('mut', TestMutable())
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mvar), mvar, start], vmap=varmap)
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mvar), start], vmap=varmap)
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mvar), start], vmap=varmap)
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mvar), mvar, start], vmap=varmap)
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mvar), start], vmap=varmap)
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mvar), mvar, start], vmap=varmap)
 scheduler.runPythonAgent(testFuncA1, pos=[mvar, start], vmap=varmap)
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mvar), mvar, start], vmap=varmap)
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mvar), mvar, start], vmap=varmap)
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mvar), start], vmap=varmap)
 scheduler.runPythonAgent(testFuncA1, pos=[ReadOnly(mvar), start], vmap=varmap)
+scheduler.runPythonAgent(testFuncA3, pos=[ReadOnly(mvar), mvar, start], vmap=varmap)
 mvar.getValue()
 
 #scheduler.runPythonAgent(testFuncA2, pos=[ReadOnly(mvar), start], vmap=varmap, numOuts=1) # BAD

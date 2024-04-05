@@ -285,9 +285,11 @@ class GraphPythonAgent(GraphNested):
                         newdict[key] = varMap[value]
                     elif isinstance(value, agentgraph.core.mutable.ReadOnly):
                         m = value.getMutable()
-                        proxy = varMap[m]._getReadOnlyProxy() if isinstance(m, agentgraph.core.var.Var) else m._getReadOnlyProxy()
+                        mutable = varMap[m] if isinstance(m, agentgraph.core.var.Var) else m
+                        proxy = mutable._getReadOnlyProxy()
                         assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
                             '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                        assert proxy._mutable == mutable, 'ReadOnlyProxy._mutable must be the original mutable'
                         newdict[key] = proxy
                     else:
                         newdict[key] = value
@@ -300,9 +302,11 @@ class GraphPythonAgent(GraphNested):
                         news.add(varMap[v])
                     elif isinstance(v, agentgraph.core.mutable.ReadOnly):
                         m = v.getMutable()
-                        proxy = varMap[m]._getReadOnlyProxy() if isinstance(m, agentgraph.core.var.Var) else m._getReadOnlyProxy()
+                        mutable = varMap[m] if isinstance(m, agentgraph.core.var.Var) else m
+                        proxy = mutable._getReadOnlyProxy()
                         assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
                             '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                        assert proxy._mutable == mutable, 'ReadOnlyProxy._mutable must be the original mutable'
                         news.add(proxy)
                     else:
                         news.add(v)
@@ -312,9 +316,11 @@ class GraphPythonAgent(GraphNested):
                 posList.append(varMap[o])
             elif isinstance(o, agentgraph.core.mutable.ReadOnly):
                 m = o.getMutable()
-                proxy = varMap[m]._getReadOnlyProxy() if isinstance(m, agentgraph.core.var.Var) else m._getReadOnlyProxy()
+                mutable = varMap[m] if isinstance(m, agentgraph.core.var.Var) else m
+                proxy = mutable._getReadOnlyProxy()
                 assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
                     '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                assert proxy._mutable == mutable, 'ReadOnlyProxy._mutable must be the original mutable'
                 posList.append(proxy)
             else:
                 posList.append(o)
@@ -331,9 +337,11 @@ class GraphPythonAgent(GraphNested):
                         newdict[key] = varMap[value]
                     elif isinstance(value, agentgraph.core.mutable.ReadOnly):
                         m = value.getMutable()
-                        proxy = varMap[m]._getReadOnlyProxy() if isinstance(m, agentgraph.core.var.Var) else m._getReadOnlyProxy()
+                        mutable = varMap[m] if isinstance(m, agentgraph.core.var.Var) else m
+                        proxy = mutable._getReadOnlyProxy()
                         assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
                             '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                        assert proxy._mutable == mutable, 'ReadOnlyProxy._mutable must be the original mutable'
                         newdict[key] = proxy
                     else:
                         newdict[key] = value
@@ -346,9 +354,11 @@ class GraphPythonAgent(GraphNested):
                         news.add(varMap[v])
                     elif isinstance(v, agentgraph.core.mutable.ReadOnly):
                         m = v.getMutable()
-                        proxy = varMap[m]._getReadOnlyProxy() if isinstance(m, agentgraph.core.var.Var) else m._getReadOnlyProxy()
+                        mutable = varMap[m] if isinstance(m, agentgraph.core.var.Var) else m
+                        proxy = mutable._getReadOnlyProxy()
                         assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
                             '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                        assert proxy._mutable == mutable, 'ReadOnlyProxy._mutable must be the original mutable'
                         news.add(proxy)
                     else:
                         news.add(v)
@@ -358,9 +368,11 @@ class GraphPythonAgent(GraphNested):
                 inMap[name] = varMap[o]
             elif isinstance(o, agentgraph.core.mutable.ReadOnly):
                 m = o.getMutable()
-                proxy = varMap[m]._getReadOnlyProxy() if isinstance(m, agentgraph.core.var.Var) else m._getReadOnlyProxy()
+                mutable = varMap[m] if isinstance(m, agentgraph.core.var.Var) else m
+                proxy = mutable._getReadOnlyProxy()
                 assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
                     '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                assert proxy._mutable == mutable, 'ReadOnlyProxy._mutable must be the original mutable'
                 inMap[name] = proxy
             else:
                 inMap[name] = o
