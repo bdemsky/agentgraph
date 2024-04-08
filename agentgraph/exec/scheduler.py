@@ -557,6 +557,7 @@ class Scheduler:
         self.endTasks: Optional[TaskNode] = None
         self.lock = threading.Lock()
         self.condVar = threading.Condition()
+        self.sleepVar = threading.Condition()
         self.dummyVar = Var("Dummy$$$$$")
         self.nextId = 1
         self.children: Set['Scheduler'] = set()
@@ -903,7 +904,12 @@ class Scheduler:
         to tasks that need those values.  Releases all of the heap
         dependences for the task.
         """
-        self.windowSize -= 1
+
+        oldWindowSize = self.windowSize
+        self.windowSize = oldWindowSize - 1
+        if oldWindowSize == 1:
+            with self.sleepVar:
+                self.sleepVar.notify_all()
         
         if node == self.scope:
             #We just finished a python agent node
@@ -1031,8 +1037,9 @@ class Scheduler:
             raise RuntimeError("Calling shutdown on non-parent Scheduler.")
         else:
             # Make sure there are no tasks in flight
-            while self.windowSize != 0:
-                time.sleep(0.001)
+            with self.sleepVar:
+                while self.windowSize != 0:
+                    self.sleepVar.wait()
             # All good, shutdown the system
             self.engine.shutdown()
             if agentgraph.config.VERBOSE > 0:
