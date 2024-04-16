@@ -18,6 +18,14 @@ import agentgraph.config
 
 currentTask = contextvars.ContextVar('currentTask', default = None)
 currentScheduler = contextvars.ContextVar('scheduler', default = None)
+isAsync = contextvars.ContextVar('isAsync', default = False)
+
+def setAsync(status: bool):
+    isAsync.set(status)
+
+def getAsync():
+    return isAsync.get()
+
 
 def getCurrentTask():
     return currentTask.get()

@@ -29,6 +29,7 @@ class Engine:
     async def worker(self, i):
         import agentgraph.exec.scheduler
         lastscheduler = None
+        agentgraph.exec.scheduler.setAsync(True)
 
         while True:
             item = await self.queue.async_q.get()
@@ -60,7 +61,11 @@ class Engine:
             self.queue.async_q.task_done()
 
     def queueItem(self, node: 'agentgraph.exec.scheduler.ScheduleNode', scheduler):
-        self.queue.async_q.put_nowait((node, scheduler))
+        isAsync = agentgraph.exec.scheduler.getAsync()
+        if (isAsync):
+            self.queue.async_q.put_nowait((node, scheduler))
+        else:
+            self.queue.sync_q.put((node, scheduler))
 
     def threadQueueItem(self, node: 'agentgraph.exec.scheduler.ScheduleNode', scheduler):
         with self.pendingPythonTaskLock:
