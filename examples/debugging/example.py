@@ -5,7 +5,7 @@ import re
 import subprocess
 
 model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
-scheduler = agentgraph.getRootScheduler(model)
+scheduler = agentgraph.get_root_scheduler(model)
 prompts = agentgraph.Prompts("./examples/debugging/prompts/")
 
 gdb_process = None
@@ -29,25 +29,25 @@ def run_gdb(scheduler, cmd):
         output += gdb_process.stdout.read(6).decode()
     return [output]
 
-sysA = prompts.loadPrompt("SystemA")
-pA = prompts.loadPrompt("PromptA")
+sysA = prompts.load_prompt("SystemA")
+pA = prompts.load_prompt("PromptA")
 ovarA = agentgraph.Var("OutA")
 gdb_out = agentgraph.Var("gdb_out")
-pgdb = prompts.loadPrompt("PromptGDB", {gdb_out})
+pgdb = prompts.load_prompt("PromptGDB", {gdb_out})
 varmap = agentgraph.VarMap()
 convA = varmap.mapToConversation("AgentA")
 convGDB = varmap.mapToConversation("GDB")
 
 while True:
-    agentA = agentgraph.createLLMAgent(ovarA, conversation = convA, msg = sysA > pA + convGDB & convA)
+    agentA = agentgraph.create_llm_agent(ovarA, conversation = convA, msg = sysA > pA + convGDB & convA)
     scheduler.addTask(agentA.start, varmap)
     varMap = None
-    agentGDB = agentgraph.createPythonAgent(run_gdb, pos=[ovarA], out=[gdb_out])
+    agentGDB = agentgraph.create_python_agent(run_gdb, pos=[ovarA], out=[gdb_out])
     scheduler.addTask(agentGDB.start)
-    gdb_output = gdb_out.getValue()
+    gdb_output = gdb_out.get_value()
     if not gdb_output:
         break
-    convGDB.getValue().push(gdb_output)
+    convGDB.get_value().push(gdb_output)
     print(gdb_output, end='')
 
 scheduler.shutdown() 

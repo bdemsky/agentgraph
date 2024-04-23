@@ -94,11 +94,11 @@ class LLMModel:
         self.response_id = 0
         self.stream = stream
 
-    async def lookupCache(self, message_to_send) -> Optional[str]:
+    async def _lookup_cache(self, message_to_send) -> Optional[str]:
         if agentgraph.config.DEBUG_PATH is None:
             return None
         encoded = json.dumps(message_to_send)
-        hash = hashMessage(encoded)
+        hash = _hash_message(encoded)
         first = hash[0:2]
         second = hash[2:4]
         path = Path(agentgraph.config.DEBUG_PATH).absolute()
@@ -113,11 +113,11 @@ class LLMModel:
                     return json.loads(contents)
         return None
     
-    def writeCache(self, message_to_send, response):
+    def _write_cache(self, message_to_send, response):
         if agentgraph.config.DEBUG_PATH is None:
             return
         encoded = json.dumps(message_to_send)
-        hash = hashMessage(encoded)
+        hash = _hash_message(encoded)
         first = hash[0:2]
         second = hash[2:4]
         path = Path(agentgraph.config.DEBUG_PATH).absolute()
@@ -186,12 +186,12 @@ class LLMModel:
                     num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
         return num_tokens
 
-    async def sendData(self, message_to_send, tools):
+    async def send_data(self, message_to_send, tools):
         request_params = {"messages": message_to_send}
         if tools:
             request_params["tools"] = tools
 
-        cache_result = await self.lookupCache(request_params)
+        cache_result = await self._lookup_cache(request_params)
         if cache_result is not None:
             return cache_result
 
@@ -249,7 +249,7 @@ class LLMModel:
             difftime = (endtime - start_time) / 1000000000
             print(f"Response={my_response_id} Time={difftime} Prompt={prompt_tokens} Completion={completion_tokens}")
 
-        self.writeCache(request_params, response)
+        self._write_cache(request_params, response)
         if model_to_use == self.smallModel:
             self.scompletion_tokens += completion_tokens
             self.sprompt_tokens += prompt_tokens
@@ -262,7 +262,7 @@ class LLMModel:
         print(f"Large Prompt tokens: {self.lprompt_tokens} Completion tokens: {self.lcompletion_tokens}")
         print(f"Small Prompt tokens: {self.sprompt_tokens} Completion tokens: {self.scompletion_tokens}")
     
-def hashMessage(message_to_send: str) -> str:
+def _hash_message(message_to_send: str) -> str:
     """ Returns hash of message_to_send"""
     
     hasher = hashlib.sha1()

@@ -7,7 +7,7 @@ import subprocess
 from file_utils import *
 
 model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
-scheduler = agentgraph.getRootScheduler(model)
+scheduler = agentgraph.get_root_scheduler(model)
 cur_dir = os.path.dirname(os.path.abspath(__file__))
 prompts = agentgraph.Prompts(cur_dir + "/prompts/")
 testdir_path = cur_dir + "/testdirectory/"
@@ -36,7 +36,7 @@ def chat_to_fs(scheduler, chat: str, fileStore: FileStore):
         fileStore[fileName] = fileContent
         print(f"parsed file {fileName} to be save")
     # we do not write to the fs for now
-    fileStore.writeFiles(testdir_path)
+    fileStore.write_files(testdir_path)
 
 def run_test(scheduler, fileStore: FileStore) -> str:
     msgs = ""
@@ -71,32 +71,32 @@ store = FileStore()
 read_from_fs(store, testdir_path)
 fileStore = varmap.mapToFileStore("FileStore", store)
 
-sysA = prompts.loadPrompt("SystemA")
-pA = prompts.loadPrompt("PromptA", {fileStore, ovarTest})
-pFix = prompts.loadPrompt("PromptFix")
+sysA = prompts.load_prompt("SystemA")
+pA = prompts.load_prompt("PromptA", {fileStore, ovarTest})
+pFix = prompts.load_prompt("PromptFix")
 
-agentA = agentgraph.createPythonAgent(run_test, pos=[fileStore], out=[ovarTest])
+agentA = agentgraph.create_python_agent(run_test, pos=[fileStore], out=[ovarTest])
 scheduler.addTask(agentA.start, varmap)
 
 while True:
     agentPair = \
-        agentgraph.createLLMAgent(ovarA, conversation = convA, msg = sysA > pA + convGDB & convA) | \
-        agentgraph.createPythonAgent(run_gdb, pos=[ovarA, processGDB], out=[ovarGDB, processGDB])
+        agentgraph.create_llm_agent(ovarA, conversation = convA, msg = sysA > pA + convGDB & convA) | \
+        agentgraph.create_python_agent(run_gdb, pos=[ovarA, processGDB], out=[ovarGDB, processGDB])
     scheduler.addTask(agentPair.start)
-    print("LLM: ", ovarA.getValue())
-    gdb_output = ovarGDB.getValue()
+    print("LLM: ", ovarA.get_value())
+    gdb_output = ovarGDB.get_value()
     if not gdb_output:
         break
-    convGDB.getValue().push(gdb_output)
+    convGDB.get_value().push(gdb_output)
     print("GDB: ", gdb_output)
 
 agentPair = \
-    agentgraph.createLLMAgent(ovarFix, conversation = convA, msg = sysA > pA + convGDB + pFix & convA) | \
-    agentgraph.createPythonAgent(chat_to_fs, pos=[ovarFix, fileStore]) | \
-    agentgraph.createPythonAgent(run_test, pos=[fileStore], out=[ovarTest])
+    agentgraph.create_llm_agent(ovarFix, conversation = convA, msg = sysA > pA + convGDB + pFix & convA) | \
+    agentgraph.create_python_agent(chat_to_fs, pos=[ovarFix, fileStore]) | \
+    agentgraph.create_python_agent(run_test, pos=[fileStore], out=[ovarTest])
 
 scheduler.addTask(agentPair.start)
-print("LLM: ", ovarFix.getValue())
-print("Test result: ", ovarTest.getValue())
+print("LLM: ", ovarFix.get_value())
+print("Test result: ", ovarTest.get_value())
 
 scheduler.shutdown() 

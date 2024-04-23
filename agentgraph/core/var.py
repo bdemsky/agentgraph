@@ -21,7 +21,7 @@ class Var(MsgSeq):
     def isRead(self) -> bool:
         return False
 
-    def getReadSet(self) -> set:
+    def _get_read_set(self) -> set:
         return { self }
 
     def exec(self, varsMap: dict):
@@ -31,10 +31,10 @@ class Var(MsgSeq):
         else:
             return lookup.exec(varsMap)
 
-    def getValue(self):
+    def get_value(self):
         """Method that will return the value the variable is assigned
         by the most recent dispatched task that writes to it.
         """
         
-        from agentgraph.exec.scheduler import getCurrentScheduler
-        return getCurrentScheduler().readVariable(self)
+        from agentgraph.exec.scheduler import _get_current_scheduler
+        return _get_current_scheduler().read_variable(self)

@@ -17,8 +17,8 @@ class Engine:
         self.queue: janus.Queue = future.result()
         self.concurrency = concurrency if concurrency > 0 else agentgraph.config.THREAD_POOL_DEFAULT_SIZE
         self.threadPool = concurrent.futures.ThreadPoolExecutor(max_workers = self.concurrency)
-        self.pendingPythonTaskLock = Lock()
-        self.pendingPythonTaskCount = 0 # number of tasks pending in thread pool
+        self._pending_python_task_lock = Lock()
+        self._pending_python_task_count = 0 # number of tasks pending in thread pool
         for i in range(self.concurrency):
             asyncio.run_coroutine_threadsafe(self.worker(i), self.loop)
         
@@ -29,7 +29,7 @@ class Engine:
     async def worker(self, i):
         import agentgraph.exec.scheduler
         lastscheduler = None
-        agentgraph.exec.scheduler.setAsync(True)
+        agentgraph.exec.scheduler._set_async(True)
 
         while True:
             item = await self.queue.async_q.get()
@@ -37,9 +37,9 @@ class Engine:
                 self.queue.async_q.task_done()
                 break
             scheduleNode, scheduler = item
-            agentgraph.exec.scheduler.setCurrentTask(scheduleNode)
+            agentgraph.exec.scheduler._set_current_task(scheduleNode)
             if scheduler != lastscheduler:
-                agentgraph.exec.scheduler.setCurrentScheduler(scheduler)
+                agentgraph.exec.scheduler._set_current_scheduler(scheduler)
                 lastscheduler = scheduler
             try:
                 await scheduleNode.run()
@@ -60,24 +60,24 @@ class Engine:
 
             self.queue.async_q.task_done()
 
-    def queueItem(self, node: 'agentgraph.exec.scheduler.ScheduleNode', scheduler):
-        isAsync = agentgraph.exec.scheduler.getAsync()
+    def _queue_item(self, node: 'agentgraph.exec.scheduler.ScheduleNode', scheduler):
+        isAsync = agentgraph.exec.scheduler._get_async()
         if (isAsync):
             self.queue.async_q.put_nowait((node, scheduler))
         else:
             self.queue.sync_q.put((node, scheduler))
 
-    def threadQueueItem(self, node: 'agentgraph.exec.scheduler.ScheduleNode', scheduler):
-        with self.pendingPythonTaskLock:
-            self.pendingPythonTaskCount += 1
+    def _thread_queue_item(self, node: 'agentgraph.exec.scheduler.ScheduleNode', scheduler):
+        with self._pending_python_task_lock:
+            self._pending_python_task_count += 1
         scheduler.future = self.threadPool.submit(threadrun, self, node, scheduler)
     
-    def getPendingPythonTaskCount(self):
+    def _get_pending_python_task_count(self):
         """
         Get number of Python tasks still pending in thread pool
         """
-        with self.pendingPythonTaskLock:
-            return self.pendingPythonTaskCount
+        with self._pending_python_task_lock:
+            return self._pending_python_task_count
         
     def shutdown(self):
         self.threadPool.shutdown(wait=True)
@@ -93,14 +93,14 @@ def threadrun(engine, scheduleNode, scheduler):
     Start a new thread to run child task.
     """
 
-    with engine.pendingPythonTaskLock:
-        engine.pendingPythonTaskCount -= 1
+    with engine._pending_python_task_lock:
+        engine._pending_python_task_count -= 1
 
     import agentgraph.exec.scheduler
-    agentgraph.exec.scheduler.setCurrentTask(scheduleNode)
-    agentgraph.exec.scheduler.setCurrentScheduler(scheduler)
+    agentgraph.exec.scheduler._set_current_task(scheduleNode)
+    agentgraph.exec.scheduler._set_current_scheduler(scheduler)
     try:
-        scheduleNode.threadRun(scheduler)
+        scheduleNode._thread_run(scheduler)
         with scheduler.lock:
             scheduler.completed(scheduleNode)
     except Exception as e:

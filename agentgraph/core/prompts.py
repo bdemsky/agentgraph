@@ -12,7 +12,7 @@ class Prompt(MsgSeq):
         self.name = name
         self.vals = vals
 
-    def isSingleMsg(self) -> bool:
+    def _is_single_msg(self) -> bool:
         return True
 
     def exec(self, varsMap: dict) -> str:
@@ -28,7 +28,7 @@ class Prompt(MsgSeq):
         val = self.prompts.runTemplate(self.name, data)
         return val
 
-    def getReadSet(self) -> set:
+    def _get_read_set(self) -> set:
         readset : Set[Union[Var, Mutable]] = set()
         for name in self.vals:
             val = self.vals[name]
@@ -39,7 +39,7 @@ class Prompt(MsgSeq):
         return readset
 
 class Prompts(JinjaManager):
-    def loadPrompt(self, prompt_name: str, vals: Optional[dict] = None) -> Prompt:
+    def load_prompt(self, prompt_name: str, vals: Optional[dict] = None) -> Prompt:
         if vals is None:
             vals = dict()
         return Prompt(self, prompt_name, vals)

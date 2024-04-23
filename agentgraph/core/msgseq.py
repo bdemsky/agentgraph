@@ -57,20 +57,20 @@ class MsgSeq:
     def isExchange(self) -> bool:
         return False
 
-    def isSingleMsg(self) -> bool:
+    def _is_single_msg(self) -> bool:
         return False
 
-    def getReadSet(self) -> set:
+    def _get_read_set(self) -> set:
         return set()
 
     def exec(self, varsMap: dict):
         pass
 
-def helperGetReadSet(msgseq) -> set:
+def _helper_get_read_set(msgseq) -> set:
     if isinstance(msgseq, Mutable):
         return {msgseq}
     elif isinstance(msgseq, MsgSeq):
-        return msgseq.getReadSet()
+        return msgseq._get_read_set()
     else:
         return set()
     
@@ -85,8 +85,8 @@ class MsgSlice(MsgSeq):
         self._left = left
         self._range = slicerange
 
-    def getReadSet(self) -> set:
-        return helperGetReadSet(self._left)
+    def _get_read_set(self) -> set:
+        return _helper_get_read_set(self._left)
 
     def exec(self, varsMap:dict):
         l = helperExec(self._left, varsMap)
@@ -109,8 +109,8 @@ class MsgChooser(MsgSeq):
         self._left = left
         self._right = right
 
-    def getReadSet(self) -> set:
-        return helperGetReadSet(self._left).union(helperGetReadSet(self._right))
+    def _get_read_set(self) -> set:
+        return _helper_get_read_set(self._left).union(_helper_get_read_set(self._right))
 
     def exec(self, varsMap: dict):
         vleft = helperExec(self._left, varsMap)
@@ -132,8 +132,8 @@ class MsgChoice(MsgSeq):
         self._left = left
         self._right = right
 
-    def getReadSet(self) -> set:
-        return helperGetReadSet(self._left).union(helperGetReadSet(self._right))
+    def _get_read_set(self) -> set:
+        return _helper_get_read_set(self._left).union(_helper_get_read_set(self._right))
 
     
 class MsgConcat(MsgSeq):
@@ -142,8 +142,8 @@ class MsgConcat(MsgSeq):
         self._left = left
         self._right = right
 
-    def getReadSet(self) -> set:
-        return helperGetReadSet(self._left).union(helperGetReadSet(self._right))
+    def _get_read_set(self) -> set:
+        return _helper_get_read_set(self._left).union(_helper_get_read_set(self._right))
 
     def exec(self, varsMap: dict):
         vleft = helperExec(self._left, varsMap)
@@ -164,8 +164,8 @@ class MsgAdd(MsgSeq):
         self._left = left
         self._right = right
 
-    def getReadSet(self) -> set:
-        return helperGetReadSet(self._left).union(helperGetReadSet(self._right))
+    def _get_read_set(self) -> set:
+        return _helper_get_read_set(self._left).union(_helper_get_read_set(self._right))
 
     def exec(self, varsMap: dict):
         vleft = helperExec(self._left, varsMap)
@@ -180,8 +180,8 @@ class MsgSummary(MsgSeq):
         super().__init__()
         self.msg = msg
 
-    def getReadSet(self) -> set:
-        return helperGetReadSet(self.msg)
+    def _get_read_set(self) -> set:
+        return _helper_get_read_set(self.msg)
 
     def exec(self, varsMap: dict):
         val = helperExec(self.msg, varsMap)
@@ -199,8 +199,8 @@ class MsgSystem(MsgSeq):
         self._systemMsg = systemMsg
         self._conv = conv
 
-    def getReadSet(self) -> set:
-        return helperGetReadSet(self._systemMsg).union(helperGetReadSet(self._conv))
+    def _get_read_set(self) -> set:
+        return _helper_get_read_set(self._systemMsg).union(_helper_get_read_set(self._conv))
         
     def isExchange(self) -> bool:
         return True

@@ -33,10 +33,10 @@ class Tool:
         assert False
         return dict()
         
-    def getReadSet(self) -> set:
+    def _get_read_set(self) -> set:
         return self.readset
 
-    def getRefs(self) -> set:
+    def _get_refs(self) -> set:
         return self.refs
 
     def getHandler(self) -> Optional[Callable]:
@@ -73,8 +73,8 @@ class ToolPrompt(Tool):
         validateToolSig(toolSig)
         return toolSig
 
-    def getReadSet(self) -> set:
-        return super().getReadSet().union(self.prompt.getReadSet())
+    def _get_read_set(self) -> set:
+        return super()._get_read_set().union(self.prompt._get_read_set())
 
 def validateToolSig(tool):
     assert type(tool) is dict, "tool must be a dictionary"
@@ -90,8 +90,8 @@ class ToolList(Mutable):
         self._tools = tools
 
     def takeToolOwnership(self, tool):
-        for ref in tool.getRefs():
-            ref.setOwningObject(self) 
+        for ref in tool._get_refs():
+            ref.set_owning_object(self) 
  
     def exec(self, varsMap: dict) -> tuple[list[dict], dict[str, Callable]]:
         toolsParam = []
@@ -104,23 +104,23 @@ class ToolList(Mutable):
             handlers[toolSig["function"]["name"]] = handler 
         return toolsParam, handlers
 
-    def getReadSet(self) -> set:
+    def _get_read_set(self) -> set:
         readSet = set()
         for tool in self._tools:
-            readSet |= tool.getReadSet()
+            readSet |= tool._get_read_set()
         return readSet
 
     def append(self, tool: Tool):
-        self.waitForAccess()
+        self.wait_for_access()
         self.takeToolOwnership(tool)
         self._tools.append(tool)
 
     def pop(self, *args) -> Tool:
-        self.waitForAccess()
+        self.wait_for_access()
         return self._tools.pop(*args)
 
-def toolsFromFunctions(funcs: list[Callable]):
+def tools_from_functions(funcs: list[Callable]):
     return ToolList(list(map(ToolReflect, funcs)))
 
-def toolsFromPrompts(loader: 'agentgraph.core.prompts.Prompts', PromptMap: dict):
-    return ToolList([ToolPrompt(loader.loadPrompt(k), handler=v) for k, v in PromptMap.items()])
+def tools_from_prompts(loader: 'agentgraph.core.prompts.Prompts', PromptMap: dict):
+    return ToolList([ToolPrompt(loader.load_prompt(k), handler=v) for k, v in PromptMap.items()])

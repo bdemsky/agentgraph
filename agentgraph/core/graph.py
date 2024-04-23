@@ -32,7 +32,7 @@ class GraphNode:
         
         return self._next[index]
 
-    def getReadSet(self) -> list:
+    def _get_read_set(self) -> list:
         """Gets list of variables this CFG node may read from."""
         
         return []
@@ -65,7 +65,7 @@ class GraphVarWait(GraphNode):
     def getCondVar(self):
         return self._condVar
     
-    def getReadSet(self) -> list:
+    def _get_read_set(self) -> list:
         return self._readList
 
     async def execute(self, varMap: dict) -> dict:
@@ -96,7 +96,7 @@ class GraphNested(GraphNode):
         
         return self._start
 
-    def getReadSet(self) -> list:
+    def _get_read_set(self) -> list:
         return self._readVars
         
     def getWriteVars(self) -> list:
@@ -123,18 +123,18 @@ class GraphLLMAgent(GraphNode):
         self.pos = pos if pos is not None else []
         self.kw = kw if kw is not None else {}
         
-    def getReadSet(self) -> list:
+    def _get_read_set(self) -> list:
         l = list(self.kw.values())
         l.extend(self.pos)
         if self.conversation is not None:
             l.append(self.conversation)
         if self.msg is not None:
-            for var in self.msg.getReadSet():
+            for var in self.msg._get_read_set():
                 if not var in l:
                     l.append(var)
         if self.tools is not None:
             l.append(self.tools)
-            for var in self.tools.getReadSet():
+            for var in self.tools._get_read_set():
                 if not var in l:
                     l.append(var)
         return l
@@ -188,10 +188,10 @@ class GraphLLMAgent(GraphNode):
 
         model = self.model
         if model is None:
-            from agentgraph.exec.scheduler import getCurrentScheduler
-            model = getCurrentScheduler().getDefaultModel()
+            from agentgraph.exec.scheduler import _get_current_scheduler
+            model = _get_current_scheduler().getDefaultModel()
         
-        message = await model.sendData(inConv, toolsParam)
+        message = await model.send_data(inConv, toolsParam)
         content = message["content"] if "content" in message else None
         toolCalls = message["tool_calls"] if "tool_calls" in message else None
 
@@ -263,7 +263,7 @@ class GraphPythonAgent(GraphNested):
         self.kw = kw if kw is not None else {}
         self.out = out if out is not None else []
 
-    def getReadSet(self) -> list:
+    def _get_read_set(self) -> list:
         return list(self.kw.values()) + self.pos
         
     def getWriteVars(self) -> list:
@@ -389,19 +389,19 @@ class GraphPythonAgent(GraphNested):
             assert not isinstance(val, agentgraph.core.mutable.ReadOnlyProxy), \
                 'Cannot return an instance of ReadOnlyProxy from a Python agent'
             if isinstance(val, Var):
-                newval = scheduler.readVariable(val)
+                newval = scheduler.read_variable(val)
             elif isinstance(val, VarSet):
                 newval = set()
                 for v in val:
                     if isinstance(v, Var):
-                        newval.add(scheduler.readVariable(v))
+                        newval.add(scheduler.read_variable(v))
                     else:
                         newval.add(v)
             elif isinstance(val, VarDict):
                 newval = dict()
                 for k, v in val:
                     if isinstance(v, Var):
-                        newval[k] = scheduler.readVariable(v)
+                        newval[k] = scheduler.read_variable(v)
                     else:
                         newval[k] = v
             else:
@@ -478,7 +478,7 @@ class VarMap:
         self._varMap[var] = val
         return var
     
-def createLLMAgent(outVar: Var, msg: Optional[MsgSeq] = None, conversation: Union[Conversation, Var, None] = None, callVar: Optional[Var] = None, tools: Optional[ToolList] = None, formatFunc = None, pos: Optional[list] = None, kw: Optional[dict] = None, model: Optional[LLMModel] = None) -> GraphPair:
+def create_llm_agent(outVar: Var, msg: Optional[MsgSeq] = None, conversation: Union[Conversation, Var, None] = None, callVar: Optional[Var] = None, tools: Optional[ToolList] = None, formatFunc = None, pos: Optional[list] = None, kw: Optional[dict] = None, model: Optional[LLMModel] = None) -> GraphPair:
     """Creates a LLM agent task.
 
     Arguments:
@@ -500,7 +500,7 @@ def createLLMAgent(outVar: Var, msg: Optional[MsgSeq] = None, conversation: Unio
     llmAgent = GraphLLMAgent(outVar, conversation, model, msg, formatFunc, callVar, tools, pos, kw)
     return GraphPair(llmAgent, llmAgent)
 
-def createPythonAgent(pythonFunc, pos: Optional[list] = None, kw: Optional[dict] = None, out: Optional[list] = None) -> GraphPair:
+def create_python_agent(pythonFunc, pos: Optional[list] = None, kw: Optional[dict] = None, out: Optional[list] = None) -> GraphPair:
     """Creates a Python agent task.
     
     Arguments:
@@ -547,6 +547,6 @@ def analyzeLinear(start: GraphNode, end: GraphNode) -> tuple[list, list]:
         n = mylist[i]
         writeSet.update(n.getWriteVars())
         readSet.difference_update(n.getWriteVars())
-        readSet.update(n.getReadSet())
+        readSet.update(n._get_read_set())
 
     return list(readSet), list(writeSet)

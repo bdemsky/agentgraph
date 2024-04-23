@@ -40,23 +40,23 @@ class Conversation(Mutable, MsgSeq):
         return ConversationReader(self)
 
     def sizeSent(self) -> int:
-        self.waitForAccess()
+        self.wait_for_access()
         return len(self._sent)
 
     def sizeRecv(self) -> int:
-        self.waitForAccess()
+        self.wait_for_access()
         return len(self._recv)
 
     def getSent(self, index: int):
-        self.waitForAccess()
+        self.wait_for_access()
         return self._sent[index]
 
     def getRecv(self, index: int):
-        self.waitForAccess()
+        self.wait_for_access()
         return self._recv[index]
     
     def pop(self, n: int):
-        self.waitForAccess()
+        self.wait_for_access()
         recv_size = len(self._recv)
         sent_size = len(self._sent)
         for l in range(n):
@@ -68,7 +68,7 @@ class Conversation(Mutable, MsgSeq):
                 sent_size-=1;
                 
     def push(self, text: str):
-        self.waitForAccess()
+        self.wait_for_access()
         if len(self._recv) == len(self._sent):
             self._sent.append(text)
         else:
@@ -86,7 +86,7 @@ class Conversation(Mutable, MsgSeq):
         return l
             
     def pushRound(self, sent: str, recv: str):
-        self.waitForAccess()
+        self.wait_for_access()
         self._sent.append(sent)
         self._recv.append(recv)
 

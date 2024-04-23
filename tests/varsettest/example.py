@@ -14,18 +14,18 @@ def testFunc2(scheduler, s: set) -> list:
     return []
 
 model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
-scheduler = agentgraph.getRootScheduler(model)
+scheduler = agentgraph.get_root_scheduler(model)
 varmap = agentgraph.VarMap()
 var = varmap.mapToInt()
 varset = agentgraph.VarSet()
 
 for i in range(30):
-    nvar = scheduler.runPythonAgent(testFunc1, numOuts = 1, pos=[var], vmap = varmap)
+    nvar = scheduler.run_python_agent(testFunc1, numOuts = 1, pos=[var], vmap = varmap)
     varmap = None
     varset.add(nvar)
     var = nvar
 
-scheduler.runPythonAgent(testFunc2, pos=[varset])
+scheduler.run_python_agent(testFunc2, pos=[varset])
 
 
 scheduler.shutdown()

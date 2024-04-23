@@ -65,7 +65,7 @@ To loads a prompt from the specified filename.  The file should use the
 Jinja templating language syntax.
 
 ```
-prompts.loadPrompt(filename, dictionary)
+prompts.load_prompt(filename, dictionary)
 ```
 
 - dictionary - a map of names to either a variable or an object that
@@ -121,7 +121,7 @@ methods that correspond to the ways of creating Tools mentioned above.
 (1)
 
 ```
-tools = agentgraph.toolsFromFunctions([func1, func2])
+tools = agentgraph.tools_from_functions([func1, func2])
 ```
 
 Creates a ToolList from a list of python functions
@@ -129,7 +129,7 @@ Creates a ToolList from a list of python functions
 (2)
 
 ```
-tools = agentgraph.toolsFromPrompts(toolLoader, {filename1: handler1, filename2: handler2})
+tools = agentgraph.tools_from_prompts(toolLoader, {filename1: handler1, filename2: handler2})
 ```
 
 Creates a ToolList from a tool loader and a dictionary mapping the files 
@@ -142,7 +142,7 @@ To create a schedule to run task.  The argument specifies the default
 model to use.
 
 ```
-scheduler = agentgraph.getRootScheduler(model)
+scheduler = agentgraph.get_root_scheduler(model)
 ```
 
 ### Running Python Tasks
@@ -150,7 +150,7 @@ scheduler = agentgraph.getRootScheduler(model)
 To run a Python task we use:
 
 ```
-scheduler.runPythonAgent(function, pos, kw, out, vmap)
+scheduler.run_python_agent(function, pos, kw, out, vmap)
 ```
 
 - function - function to run for task
@@ -164,7 +164,7 @@ scheduler.runPythonAgent(function, pos, kw, out, vmap)
 To run a LLM task we use:
 
 ```
-scheduler.runLLMAgent(outVar, msg, conversation, model, callVar, tools, formatFunc, pos, kw, vmap)
+scheduler.run_llm_agent(outVar, msg, conversation, model, callVar, tools, formatFunc, pos, kw, vmap)
 ```
 
 - outVar - variable to hold the output string from the LLM model
@@ -200,7 +200,7 @@ varmap = agentgraph.VarMap()
 To get the value of a variable (stalling the parent task until the child task has finished):
 
 ```
-var.getValue()
+var.get_value()
 ```
 
 

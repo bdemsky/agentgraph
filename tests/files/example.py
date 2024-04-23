@@ -12,14 +12,14 @@ def testFunc2(scheduler, fs) -> list:
     return [4]
 
 model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
-scheduler = agentgraph.getRootScheduler(model)
+scheduler = agentgraph.get_root_scheduler(model)
 fs = agentgraph.FileStore()
 fs["a"]="0"
-vara = scheduler.runPythonAgent(testFunc1, pos=[fs], numOuts = 1)
-varb = scheduler.runPythonAgent(testFunc2, pos=[fs], numOuts = 1)
+vara = scheduler.run_python_agent(testFunc1, pos=[fs], numOuts = 1)
+varb = scheduler.run_python_agent(testFunc2, pos=[fs], numOuts = 1)
 
 print(fs["a"])
-print(vara.getValue())
-print(varb.getValue())
+print(vara.get_value())
+print(varb.get_value())
 
 scheduler.shutdown()

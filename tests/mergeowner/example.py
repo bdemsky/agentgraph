@@ -10,10 +10,10 @@ class Register(agentgraph.core.mutable.Mutable):
         super().__init__(owner)
         self.value = 0
 
-    def getValue(self) -> int:
+    def get_value(self) -> int:
         # inject delays
         time.sleep(random.random())
-        self.waitForAccess()
+        self.wait_for_access()
         return self.value
 
     def setValue(self, num: int):
@@ -25,7 +25,7 @@ class Register(agentgraph.core.mutable.Mutable):
         """
         # inject delays
         time.sleep(random.random())
-        self.waitForAccess()
+        self.wait_for_access()
         self.value = num
 
 class RegisterList(agentgraph.core.mutable.Mutable):
@@ -34,44 +34,44 @@ class RegisterList(agentgraph.core.mutable.Mutable):
         self.list = []
 
     def __getitem__(self, index) -> Register:
-        self.waitForAccess()
+        self.wait_for_access()
         return self.list[index]
 
     def append(self, reg: Register):
-        self.waitForAccess()
-        reg.setOwningObject(self)
+        self.wait_for_access()
+        reg.set_owning_object(self)
         self.list.append(reg)
 
     def pop(self, *args) -> Register:
         return self.list.pop(*args)
 
 model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
-scheduler = agentgraph.getRootScheduler(model)
+scheduler = agentgraph.get_root_scheduler(model)
 reg = Register()
 reglist = RegisterList()
 
 def testFunc1(scheduler, reg, reglist) -> list:
     reglist.append(reg)
-    scheduler.runPythonAgent(lambda _, rl, n: rl[0].setValue(n), pos=[reglist, 1])
-    print(reg.getValue())
-    scheduler.runPythonAgent(lambda _, r, n: r.setValue(n), pos=[reg, 2])
-    print(reg.getValue())
+    scheduler.run_python_agent(lambda _, rl, n: rl[0].setValue(n), pos=[reglist, 1])
+    print(reg.get_value())
+    scheduler.run_python_agent(lambda _, r, n: r.setValue(n), pos=[reg, 2])
+    print(reg.get_value())
 
     return []
 
 # nested scope
-scheduler.runPythonAgent(testFunc1, pos=[reg, reglist])
-scheduler.runPythonAgent(lambda _, rl, n: rl[0].setValue(n), pos=[reglist, 3])
-print(reg.getValue())
-scheduler.runPythonAgent(lambda _, r, n: r.setValue(n), pos=[reg, 4])
-print(reg.getValue())
+scheduler.run_python_agent(testFunc1, pos=[reg, reglist])
+scheduler.run_python_agent(lambda _, rl, n: rl[0].setValue(n), pos=[reglist, 3])
+print(reg.get_value())
+scheduler.run_python_agent(lambda _, r, n: r.setValue(n), pos=[reg, 4])
+print(reg.get_value())
 
 # loop
 for i in range(1, 5, 2):
-    scheduler.runPythonAgent(lambda _, rl, n: rl[0].setValue(n), pos=[reglist, i])
-    print(reg.getValue())
-    scheduler.runPythonAgent(lambda _, r, n: r.setValue(n), pos=[reg, i+1])
-    print(reg.getValue())
+    scheduler.run_python_agent(lambda _, rl, n: rl[0].setValue(n), pos=[reglist, i])
+    print(reg.get_value())
+    scheduler.run_python_agent(lambda _, r, n: r.setValue(n), pos=[reg, i+1])
+    print(reg.get_value())
     # add a new register to toollist every iteration
     reglist.pop()
     reg = Register()

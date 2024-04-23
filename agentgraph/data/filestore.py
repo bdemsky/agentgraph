@@ -36,22 +36,22 @@ class FileStore(Mutable):
         return ReadFileStore(self)
         
     def __contains__(self, key: str) -> bool:
-        self.waitForAccess()
+        self.wait_for_access()
         return key in self.filestore
 
     def __getitem__(self, key: str) -> str:
-        self.waitForAccess()
+        self.wait_for_access()
         return self.filestore[key]
 
     def get(self, key: str, default: Optional[Any] = None) -> Any:
-        self.waitForAccess()
+        self.wait_for_access()
         try:
             return self[key]
         except KeyError:
             return default
 
     def __setitem__(self, key: Union[str, Path], val: str) -> None:
-        self.waitForAccess()
+        self.wait_for_access()
         if str(key).startswith("../"):
             raise ValueError(f"File name {key} attempted to access parent path.")
 
@@ -59,22 +59,22 @@ class FileStore(Mutable):
         self.filestore[key] = val
 
     def __iter__(self):
-        self.waitForAccess()
+        self.wait_for_access()
         files = self.get_files()
         return files.__iter__()
 
     def get_files(self):
-        self.waitForAccess()
+        self.wait_for_access()
         return list(self.filestore)
 
     def __delitem__(self, key: Union[str, Path]) -> None:
-        self.waitForAccess()
+        self.wait_for_access()
         del self.filestore[key]
 
-    def writeFiles(self, path: Union[str, Path]):
+    def write_files(self, path: Union[str, Path]):
         """Write all files to path."""
 
-        self.waitForAccess()
+        self.wait_for_access()
         filepath: Path = Path(path).absolute()
         filepath.mkdir(parents=True, exist_ok=True)
         for key in self.filestore:

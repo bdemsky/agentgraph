@@ -27,13 +27,13 @@ def testFunc4(scheduler, fs) -> list:
     return []
 
 model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
-scheduler = agentgraph.getRootScheduler(model)
+scheduler = agentgraph.get_root_scheduler(model)
 fs = agentgraph.FileStore()
 fs["a"]="0"
-out=scheduler.runPythonAgent(testFunc1, numOuts=1, pos=[fs])
-out2=scheduler.runPythonAgent(testFunc2, numOuts=1, pos=[out])
-scheduler.runPythonAgent(testFunc3, pos=[out2])
-scheduler.runPythonAgent(testFunc4, pos=[fs])
+out=scheduler.run_python_agent(testFunc1, numOuts=1, pos=[fs])
+out2=scheduler.run_python_agent(testFunc2, numOuts=1, pos=[out])
+scheduler.run_python_agent(testFunc3, pos=[out2])
+scheduler.run_python_agent(testFunc4, pos=[fs])
 
 print("Dispatched all")
 print(4,fs["a"])
