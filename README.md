@@ -178,6 +178,17 @@ scheduler.run_llm_agent(outVar, msg, conversation, model, callVar, tools, format
 - model - model to use (overriding default model)
 - vmap - VarMap object to provide a set of variable object assignment to be performend before the task is started.
 
+### Shutting the root scheduler down.
+
+The shutdown method shuts down the root scheduler and waits for the
+execution of all invoked task to finish.
+
+It is invoked by:
+
+```
+scheduler.shutdown()
+```
+
 ### Query Generation
 
 
@@ -203,6 +214,40 @@ To get the value of a variable (stalling the parent task until the child task ha
 var.get_value()
 ```
 
+### Collections of Variables and Values
+
+AgentGraph includes collection objects that Variables can be inserted.
+These collection objects can be passed into task, and when the task
+executes the variables in the collection will be replaced with the
+corresponding values.
+
+A VarSet is a set that can contain both values and variables.  You can
+allocate a VarSet using the command:
+
+```
+varset = agentgraph.VarSet()
+```
+
+The add method of the VarSet class adds variables or values to it.
+
+```
+varset.add(variable)
+```
+
+AgentGraph also supports a VarDict, a dictionary in which the values
+can be Variables or normal values.  To allocate a VarDict:
+
+```
+vardict = agentgraph.VarDict()
+```
+
+To add a key-value pair to a vardict:
+
+```
+vardict[key] = varvalue
+```
+
+Note that keys cannot be variables.
 
 ### Using VLLM
 
@@ -216,9 +261,3 @@ Setup agentgraph with the appropriate LLMModel object.  For example:
 model = agentgraph.LLMModel("http://127.0.0.1:8000/v1/", os.getenv("OPENAI_API_KEY"), "meta-llama/Llama-2-7b-chat-hf", "meta-llama/Llama-2-7b-chat-hf", 34000, useOpenAI=True)
 ```
 
-
-### TODO
-
-Talk about vars
-
-Talk about varset
