@@ -24,6 +24,22 @@ First, you need to import the AgentGraph package.  To do this you need:
 import agentgraph
 ```
 
+### Key Concepts
+
+AgentGraph uses nested task-based parallelism model.  Child tasks are
+invoked by either the parent thread or another task.  The invoking
+thread or task does not wait for the child task to execute.  A task
+executes when all of its inputs are available.
+
+AgentGraph programs execute in parallel, but have sequential
+semantics.  The parallel execution is guaranteed to produce the same
+results as a sequential execution.
+
+Variables represent the return values of tasks.  They function
+effectively as futures.  But they can be passed into later tasks, and
+those later tasks will wait until the task that produced the variable
+finishes execution.
+
 ### Model
 
 AgentGraph uses a model object to access LLMs.   
