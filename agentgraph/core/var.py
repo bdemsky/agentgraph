@@ -12,13 +12,13 @@ class Var(MsgSeq):
             varNameCount += 1
         self.name = name
 
-    def getName(self) -> str:
+    def get_name(self) -> str:
         return self.name
 
-    def isMutable(self) -> bool:
+    def is_mutable(self) -> bool:
         return False
 
-    def isRead(self) -> bool:
+    def is_read(self) -> bool:
         return False
 
     def _get_read_set(self) -> set:

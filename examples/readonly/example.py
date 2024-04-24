@@ -38,7 +38,7 @@ class TestReadOnlyProxy(ReadOnlyProxy):
         return 'ReadOnlyProxy'
 
 class TestMutable(Mutable):
-    def _getReadOnlyProxy(self):
+    def _get_read_only_proxy(self):
         return TestReadOnlyProxy(self)
     
     def __repr__(self):
@@ -58,7 +58,7 @@ mutable.wait_for_read_access()
 print('TestB', time.time() - start)
 mutable.wait_for_access()
 
-proxy = mutable._getReadOnlyProxy()
+proxy = mutable._get_read_only_proxy()
 scheduler.run_python_agent(testFuncA3, pos=[proxy, mutable, start])
 scheduler.run_python_agent(testFuncA1, pos=[ReadOnly(mutable), start])
 scheduler.run_python_agent(testFuncA3, pos=[proxy, ReadOnly(mutable), start])
@@ -88,7 +88,7 @@ scheduler.run_python_agent(testFuncA3, pos=[ReadOnly(mvar), mvar, start])
 mvar.get_value()
 
 varmap = agentgraph.VarMap()
-mvar = varmap.mapToMutable('mut', TestMutable())
+mvar = varmap.map_to_mutable('mut', TestMutable())
 scheduler.run_python_agent(testFuncA3, pos=[ReadOnly(mvar), mvar, start], vmap=varmap)
 scheduler.run_python_agent(testFuncA1, pos=[ReadOnly(mvar), start], vmap=varmap)
 scheduler.run_python_agent(testFuncA1, pos=[ReadOnly(mvar), start], vmap=varmap)

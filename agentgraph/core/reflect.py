@@ -15,13 +15,13 @@ class Closure:
     def __call__(self, *args, **kwargs):
         return self.func(*args, **kwargs)
 
-def asClosure(argMap: dict):
+def as_closure(argMap: dict):
     """Decorator for turning function into agentgraph closure. Does not work on instance methods"""
     def inner(func):
         return Closure(func, argMap)
     return inner
 
-def funcToToolSig(func: Callable) -> dict:
+def func_to_tool_sig(func: Callable) -> dict:
     func_dict: Dict[str, Any] = {"name": func.__name__}
     sig = inspect.signature(func)
     params = sig.parameters
@@ -46,7 +46,7 @@ def funcToToolSig(func: Callable) -> dict:
             if param_name in ignore:
                 continue
             if param_name in desc_dict:
-                properties[param_name] = {"type": typeToJSONSchema(func.__annotations__[param_name]), "description": desc_dict[param_name]}
+                properties[param_name] = {"type": type_to_json_schema(func.__annotations__[param_name]), "description": desc_dict[param_name]}
 
                 param_obj = params[param_name]
                 if param_obj.default is param_obj.empty:
@@ -56,7 +56,7 @@ def funcToToolSig(func: Callable) -> dict:
 
     return {"type": "function", "function" : func_dict}
 
-def typeToJSONSchema(ty: type) -> str:
+def type_to_json_schema(ty: type) -> str:
     if ty is bool:
         return "boolean"
     if ty is str:

@@ -63,12 +63,12 @@ class Mutable:
             
         return root
 
-    def getOwningTask(self) -> Optional['agentgraph.exec.scheduler.ScheduleNode']:
+    def get_owning_task(self) -> Optional['agentgraph.exec.scheduler.ScheduleNode']:
         root = self._get_root_object()
         assert root._owner is None or isinstance(root._owner, agentgraph.exec.scheduler.ScheduleNode)
         return root._owner
     
-    def setOwningTask(self, task: 'agentgraph.exec.scheduler.ScheduleNode'):
+    def set_owning_task(self, task: 'agentgraph.exec.scheduler.ScheduleNode'):
         root = self._get_root_object()
         root._owner = task
         
@@ -86,7 +86,7 @@ class Mutable:
         if root._owner == currTask:
             return
         # No, so wait for access
-        _get_current_scheduler().objAccess(root)
+        _get_current_scheduler().obj_access(root)
         # We own this mutable now
         root._owner = currTask
     
@@ -99,21 +99,21 @@ class Mutable:
         if root._owner == currTask:
             return
         # No, so wait for access
-        _get_current_scheduler().objAccess(root, True)
+        _get_current_scheduler().obj_access(root, True)
         # We own this mutable now
         # root._owner = currTask
 
     def _snapshot(self):
         pass
     
-    def _getReadOnlyProxy(self):
+    def _get_read_only_proxy(self):
         raise NotImplementedError
 
 class ReadOnly:
     def __init__(self, mutable: 'Union[Mutable, agentgraph.core.var.Var]'):
         self._mutable = mutable
     
-    def getMutable(self):
+    def get_mutable(self):
         return self._mutable
 
 class ReadOnlyProxy:

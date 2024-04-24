@@ -18,7 +18,7 @@ class Conversation(Mutable, MsgSeq):
         if prompt is not None:
             self._sent.push(prompt)
 
-    def loadConv(self, conv: list):
+    def load_conv(self, conv: list):
         self._system = None
         self._recv = []
         self._sent = []
@@ -31,7 +31,7 @@ class Conversation(Mutable, MsgSeq):
             elif sender == "system":
                 self._system = msg["content"]    
 
-    def copyState(self, conv):
+    def copy_state(self, conv):
         self._system = conv._system
         self._sent = conv._sent.copy()
         self._recv = conv._recv.copy()
@@ -39,19 +39,19 @@ class Conversation(Mutable, MsgSeq):
     def _snapshot(self) -> ConversationReader:
         return ConversationReader(self)
 
-    def sizeSent(self) -> int:
+    def size_sent(self) -> int:
         self.wait_for_access()
         return len(self._sent)
 
-    def sizeRecv(self) -> int:
+    def size_recv(self) -> int:
         self.wait_for_access()
         return len(self._recv)
 
-    def getSent(self, index: int):
+    def get_sent(self, index: int):
         self.wait_for_access()
         return self._sent[index]
 
-    def getRecv(self, index: int):
+    def get_recv(self, index: int):
         self.wait_for_access()
         return self._recv[index]
     
@@ -85,7 +85,7 @@ class Conversation(Mutable, MsgSeq):
             
         return l
             
-    def pushRound(self, sent: str, recv: str):
+    def push_round(self, sent: str, recv: str):
         self.wait_for_access()
         self._sent.append(sent)
         self._recv.append(recv)

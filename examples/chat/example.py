@@ -13,7 +13,7 @@ pA = prompts.load_prompt("PromptA")
 convA = agentgraph.Conversation()
 convB = agentgraph.Conversation()
 varmap = agentgraph.VarMap()
-ovarB = varmap.mapToNone()
+ovarB = varmap.map_to_none()
 
 for i in range(2):
     ovarA = scheduler.run_llm_agent(conversation = convA, msg = convA > (convA & ovarB | sysA ** pA), vmap = varmap)

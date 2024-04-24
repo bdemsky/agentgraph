@@ -16,7 +16,7 @@ def testFunc2(scheduler, s: set) -> list:
 model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
 scheduler = agentgraph.get_root_scheduler(model)
 varmap = agentgraph.VarMap()
-var = varmap.mapToInt()
+var = varmap.map_to_int()
 varset = agentgraph.VarSet()
 
 for i in range(30):

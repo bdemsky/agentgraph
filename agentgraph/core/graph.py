@@ -22,12 +22,12 @@ class GraphNode:
     def __init__(self):
         self._next = [None]
 
-    def setNext(self, index: int, n: Optional['GraphNode']):
+    def set_next(self, index: int, n: Optional['GraphNode']):
         """Sets index'th successor node in CFG"""
         
         self._next[index] = n
         
-    def getNext(self, index: int) -> Optional['GraphNode']:
+    def get_next(self, index: int) -> Optional['GraphNode']:
         """Get index'th successor node in CFG"""
         
         return self._next[index]
@@ -37,7 +37,7 @@ class GraphNode:
         
         return []
 
-    def getWriteVars(self) -> list:
+    def get_write_vars(self) -> list:
         """Gets list of variables this CFG node may write to."""
 
         return []
@@ -50,10 +50,10 @@ class GraphVarWait(GraphNode):
         self._condVar = condVar
         self._done = False
 
-    def setDone(self):
+    def set_done(self):
         self._done = True
         
-    def isDone(self) -> bool:
+    def is_done(self) -> bool:
         return self._done
         
     def __setitem__(self, obj: Var, value):
@@ -62,7 +62,7 @@ class GraphVarWait(GraphNode):
     def __getitem__(self, obj: Var):
         return self._valMap[obj]
 
-    def getCondVar(self):
+    def get_cond_var(self):
         return self._condVar
     
     def _get_read_set(self) -> list:
@@ -76,7 +76,7 @@ class GraphVarWait(GraphNode):
 
         with self._condVar:
             # Set our done flag
-            self.setDone()
+            self.set_done()
             # Wake the waiters
             self._condVar.notify_all()
 
@@ -99,13 +99,13 @@ class GraphNested(GraphNode):
     def _get_read_set(self) -> list:
         return self._readVars
         
-    def getWriteVars(self) -> list:
+    def get_write_vars(self) -> list:
         return self._writeVars
     
-    def setReadVars(self, readVars: list):
+    def set_read_vars(self, readVars: list):
         self._readVars = readVars
         
-    def setWriteVars(self, writeVars: list):
+    def set_write_vars(self, writeVars: list):
         self._writeVars = writeVars
 
 class GraphLLMAgent(GraphNode):
@@ -139,7 +139,7 @@ class GraphLLMAgent(GraphNode):
                     l.append(var)
         return l
         
-    def getWriteVars(self) -> list:
+    def get_write_vars(self) -> list:
         return [self.outVar, self.callVar]
 
     async def execute(self, varMap: dict) -> dict:
@@ -189,7 +189,7 @@ class GraphLLMAgent(GraphNode):
         model = self.model
         if model is None:
             from agentgraph.exec.scheduler import _get_current_scheduler
-            model = _get_current_scheduler().getDefaultModel()
+            model = _get_current_scheduler().get_default_model()
         
         message = await model.send_data(inConv, toolsParam)
         content = message["content"] if "content" in message else None
@@ -206,7 +206,7 @@ class GraphLLMAgent(GraphNode):
                 actConv = self.conversation
 
             #Make the output conversation match the full discussion
-            actConv.loadConv(inConv)
+            actConv.load_conv(inConv)
             actConv.push(outStr)
 
         # Put result in output map
@@ -214,7 +214,7 @@ class GraphLLMAgent(GraphNode):
         outMap[self.outVar] = content
 
         if toolCalls is not None and handlers is not None:
-            handleCalls(toolCalls, handlers, varMap)
+            handle_calls(toolCalls, handlers, varMap)
 
             # Update conversation with tool call results
             if self.conversation is not None:
@@ -228,7 +228,7 @@ class GraphLLMAgent(GraphNode):
         
         return outMap
 
-def handleCalls(calls: list, handlers: dict, varMap: dict):
+def handle_calls(calls: list, handlers: dict, varMap: dict):
    for call in calls:
        func = call['function']
        try:
@@ -266,7 +266,7 @@ class GraphPythonAgent(GraphNested):
     def _get_read_set(self) -> list:
         return list(self.kw.values()) + self.pos
         
-    def getWriteVars(self) -> list:
+    def get_write_vars(self) -> list:
         return self.out
 
     def execute(self, scheduler: 'agentgraph.exec.scheduler.Scheduler', varMap: dict) -> dict:
@@ -284,11 +284,11 @@ class GraphPythonAgent(GraphNested):
                     if isinstance(value, agentgraph.core.var.Var):
                         newdict[key] = varMap[value]
                     elif isinstance(value, agentgraph.core.mutable.ReadOnly):
-                        m = value.getMutable()
+                        m = value.get_mutable()
                         mutable = varMap[m] if isinstance(m, agentgraph.core.var.Var) else m
-                        proxy = mutable._getReadOnlyProxy()
+                        proxy = mutable._get_read_only_proxy()
                         assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
-                            '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                            '_get_read_only_proxy() must return an instance of ReadOnlyProxy'
                         assert proxy._mutable == mutable, 'ReadOnlyProxy._mutable must be the original mutable'
                         newdict[key] = proxy
                     else:
@@ -301,11 +301,11 @@ class GraphPythonAgent(GraphNested):
                     if isinstance(v, agentgraph.core.var.Var):
                         news.add(varMap[v])
                     elif isinstance(v, agentgraph.core.mutable.ReadOnly):
-                        m = v.getMutable()
+                        m = v.get_mutable()
                         mutable = varMap[m] if isinstance(m, agentgraph.core.var.Var) else m
-                        proxy = mutable._getReadOnlyProxy()
+                        proxy = mutable._get_read_only_proxy()
                         assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
-                            '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                            '_get_read_only_proxy() must return an instance of ReadOnlyProxy'
                         assert proxy._mutable == mutable, 'ReadOnlyProxy._mutable must be the original mutable'
                         news.add(proxy)
                     else:
@@ -315,11 +315,11 @@ class GraphPythonAgent(GraphNested):
             elif isinstance(o, agentgraph.core.var.Var):
                 posList.append(varMap[o])
             elif isinstance(o, agentgraph.core.mutable.ReadOnly):
-                m = o.getMutable()
+                m = o.get_mutable()
                 mutable = varMap[m] if isinstance(m, agentgraph.core.var.Var) else m
-                proxy = mutable._getReadOnlyProxy()
+                proxy = mutable._get_read_only_proxy()
                 assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
-                    '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                    '_get_read_only_proxy() must return an instance of ReadOnlyProxy'
                 assert proxy._mutable == mutable, 'ReadOnlyProxy._mutable must be the original mutable'
                 posList.append(proxy)
             else:
@@ -336,11 +336,11 @@ class GraphPythonAgent(GraphNested):
                     if isinstance(value, agentgraph.core.var.Var):
                         newdict[key] = varMap[value]
                     elif isinstance(value, agentgraph.core.mutable.ReadOnly):
-                        m = value.getMutable()
+                        m = value.get_mutable()
                         mutable = varMap[m] if isinstance(m, agentgraph.core.var.Var) else m
-                        proxy = mutable._getReadOnlyProxy()
+                        proxy = mutable._get_read_only_proxy()
                         assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
-                            '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                            '_get_read_only_proxy() must return an instance of ReadOnlyProxy'
                         assert proxy._mutable == mutable, 'ReadOnlyProxy._mutable must be the original mutable'
                         newdict[key] = proxy
                     else:
@@ -353,11 +353,11 @@ class GraphPythonAgent(GraphNested):
                     if isinstance(v, agentgraph.core.var.Var):
                         news.add(varMap[v])
                     elif isinstance(v, agentgraph.core.mutable.ReadOnly):
-                        m = v.getMutable()
+                        m = v.get_mutable()
                         mutable = varMap[m] if isinstance(m, agentgraph.core.var.Var) else m
-                        proxy = mutable._getReadOnlyProxy()
+                        proxy = mutable._get_read_only_proxy()
                         assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
-                            '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                            '_get_read_only_proxy() must return an instance of ReadOnlyProxy'
                         assert proxy._mutable == mutable, 'ReadOnlyProxy._mutable must be the original mutable'
                         news.add(proxy)
                     else:
@@ -367,11 +367,11 @@ class GraphPythonAgent(GraphNested):
             elif isinstance(o, agentgraph.core.var.Var):
                 inMap[name] = varMap[o]
             elif isinstance(o, agentgraph.core.mutable.ReadOnly):
-                m = o.getMutable()
+                m = o.get_mutable()
                 mutable = varMap[m] if isinstance(m, agentgraph.core.var.Var) else m
-                proxy = mutable._getReadOnlyProxy()
+                proxy = mutable._get_read_only_proxy()
                 assert isinstance(proxy, agentgraph.core.mutable.ReadOnlyProxy), \
-                    '_getReadOnlyProxy() must return an instance of ReadOnlyProxy'
+                    '_get_read_only_proxy() must return an instance of ReadOnlyProxy'
                 assert proxy._mutable == mutable, 'ReadOnlyProxy._mutable must be the original mutable'
                 inMap[name] = proxy
             else:
@@ -420,7 +420,7 @@ class GraphPair:
         self.end = end
 
     def __or__(a: 'GraphPair', b: 'GraphPair') -> 'GraphPair':
-        return createSequence([a, b])
+        return create_sequence([a, b])
     
 class VarMap:
     def __init__(self):
@@ -429,51 +429,51 @@ class VarMap:
     def _getVariable(self, name: Optional[str]) -> Var:
         return Var(name)
 
-    def getVarMap(self) -> dict:
+    def get_var_map(self) -> dict:
         return self._varMap
         
-    def mapToConversation(self, name: Optional[str] = None, val: Optional[Conversation] = None) -> Var:
+    def map_to_conversation(self, name: Optional[str] = None, val: Optional[Conversation] = None) -> Var:
         var = self._getVariable(name)
         if val is None:
             val = Conversation()
         self._varMap[var] = val
         return var
 
-    def mapToFileStore(self, name: Optional[str] = None, val: Optional[FileStore] = None) -> Var:
+    def map_to_filestore(self, name: Optional[str] = None, val: Optional[FileStore] = None) -> Var:
         var = self._getVariable(name)
         if val is None:
             val = FileStore()
         self._varMap[var] = val
         return var
 
-    def mapToToolList(self, name: Optional[str] = None, val: Optional[ToolList] = None) -> Var:
+    def map_to_toollist(self, name: Optional[str] = None, val: Optional[ToolList] = None) -> Var:
         var = self._getVariable(name)
         if val is None:
             val = ToolList()
         self._varMap[var] = val
         return var
 
-    def mapToMutable(self, name: Optional[str] = None, val: Optional[Mutable] = None) -> Var:
+    def map_to_mutable(self, name: Optional[str] = None, val: Optional[Mutable] = None) -> Var:
         var = self._getVariable(name)
         self._varMap[var] = val
         return var
     
-    def mapToBool(self, name: Optional[str] = None, val: bool = False) -> Var:
+    def map_to_bool(self, name: Optional[str] = None, val: bool = False) -> Var:
         var = self._getVariable(name)
         self._varMap[var] = val
         return var
 
-    def mapToNone(self, name: Optional[str] = None) -> Var:
+    def map_to_none(self, name: Optional[str] = None) -> Var:
         var = self._getVariable(name)
         self._varMap[var] = None
         return var
 
-    def mapToInt(self, name: Optional[str] = None, val: int = 0) -> Var:
+    def map_to_int(self, name: Optional[str] = None, val: int = 0) -> Var:
         var = self._getVariable(name)
         self._varMap[var] = val
         return var
 
-    def mapToString(self, name: Optional[str] = None, val: str = "") -> Var:
+    def map_to_str(self, name: Optional[str] = None, val: str = "") -> Var:
         var = self._getVariable(name)
         self._varMap[var] = val
         return var
@@ -512,41 +512,41 @@ def create_python_agent(pythonFunc, pos: Optional[list] = None, kw: Optional[dic
     pythonAgent = GraphPythonAgent(pythonFunc, pos, kw, out)
     return GraphPair(pythonAgent, pythonAgent)
 
-def createSequence(list) -> GraphPair:
+def create_sequence(list) -> GraphPair:
     """This creates a sequency of GraphNodes"""
 
     start = list[0].start
     last = list[0].end
     for l in list[1:]:
-        last.setNext(0, l.start)
+        last.set_next(0, l.start)
         last = l.end
     return GraphPair(start, last)
 
-def createRunnable(pair: GraphPair) -> GraphNested:
+def create_runnable(pair: GraphPair) -> GraphNested:
     """Encapsulates a GraphPair to make it runnable"""
-    readSet, writeSet = analyzeLinear(pair.start, pair.end)
+    readSet, writeSet = analyze_linear(pair.start, pair.end)
     graph = GraphNested(pair.start)
-    pair.end.setNext(0, None)
+    pair.end.set_next(0, None)
 
-    graph.setReadVars(readSet)
-    graph.setWriteVars(writeSet)
+    graph.set_read_vars(readSet)
+    graph.set_write_vars(writeSet)
     return graph
 
-def analyzeLinear(start: GraphNode, end: GraphNode) -> tuple[list, list]:
+def analyze_linear(start: GraphNode, end: GraphNode) -> tuple[list, list]:
     """ This function analyzes reads/writes of linear chains"""
 
     node : Optional[GraphNode] = start
     mylist = []
     while node is not None:
         mylist.append(node)
-        node = node.getNext(0)
+        node = node.get_next(0)
 
     readSet: Set[Any] = set()
     writeSet: Set[Any] = set()
     for i in range(len(mylist) - 1, -1, -1):
         n = mylist[i]
-        writeSet.update(n.getWriteVars())
-        readSet.difference_update(n.getWriteVars())
+        writeSet.update(n.get_write_vars())
+        readSet.difference_update(n.get_write_vars())
         readSet.update(n._get_read_set())
 
     return list(readSet), list(writeSet)

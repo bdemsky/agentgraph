@@ -1,7 +1,7 @@
 from agentgraph.core.jinjamanager import JinjaManager
 from agentgraph.core.mutable import Mutable
 from agentgraph.core.prompts import Prompt
-from agentgraph.core.reflect import funcToToolSig, Closure
+from agentgraph.core.reflect import func_to_tool_sig, Closure
 from agentgraph.core.var import Var
 import agentgraph
 from dataclasses import dataclass
@@ -23,7 +23,7 @@ class Tool:
                 self.refs.add(handler.func.__self__)
             for val in handler.argMap.values():
                 if isinstance(val, Var):
-                    if val.isMutable():
+                    if val.is_mutable():
                         raise RuntimeError("tool cannot depend on mutvars")
                     self.readset.add(val)
                 elif isinstance(val, Mutable):
@@ -39,7 +39,7 @@ class Tool:
     def _get_refs(self) -> set:
         return self.refs
 
-    def getHandler(self) -> Optional[Callable]:
+    def get_handler(self) -> Optional[Callable]:
         return self.handler
 
 class ToolReflect(Tool):
@@ -56,7 +56,7 @@ class ToolReflect(Tool):
 
         handler = func if createHandler else None
         super().__init__(handler)
-        self.toolSig: dict = funcToToolSig(func)
+        self.toolSig: dict = func_to_tool_sig(func)
 
     def exec(self, varsMap: dict) -> dict:
         return self.toolSig
@@ -70,13 +70,13 @@ class ToolPrompt(Tool):
         """Compute value of tool signature at runtime"""
         val = self.prompt.exec(varsMap)
         toolSig = json.loads(val)
-        validateToolSig(toolSig)
+        validate_tool_sig(toolSig)
         return toolSig
 
     def _get_read_set(self) -> set:
         return super()._get_read_set().union(self.prompt._get_read_set())
 
-def validateToolSig(tool):
+def validate_tool_sig(tool):
     assert type(tool) is dict, "tool must be a dictionary"
     assert "type" in tool, "missing type in tool"
     assert tool["type"] == "function", "currently only function is supported in tools"
@@ -86,10 +86,10 @@ class ToolList(Mutable):
     def __init__(self, tools: list[Tool] = [], owner = None):
         super().__init__(owner)
         for tool in tools:
-            self.takeToolOwnership(tool)
+            self.take_tool_ownership(tool)
         self._tools = tools
 
-    def takeToolOwnership(self, tool):
+    def take_tool_ownership(self, tool):
         for ref in tool._get_refs():
             ref.set_owning_object(self) 
  
@@ -99,7 +99,7 @@ class ToolList(Mutable):
         for tool in self._tools:
             toolSig = tool.exec(varsMap)
             toolsParam.append(toolSig)
-            handler = tool.getHandler()
+            handler = tool.get_handler()
             assert handler is not None
             handlers[toolSig["function"]["name"]] = handler 
         return toolsParam, handlers
@@ -112,7 +112,7 @@ class ToolList(Mutable):
 
     def append(self, tool: Tool):
         self.wait_for_access()
-        self.takeToolOwnership(tool)
+        self.take_tool_ownership(tool)
         self._tools.append(tool)
 
     def pop(self, *args) -> Tool:

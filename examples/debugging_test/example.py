@@ -63,26 +63,26 @@ ovarGDB = agentgraph.Var("OutGDB")
 ovarTest = agentgraph.Var("OutTest")
 
 varmap = agentgraph.VarMap()
-convA = varmap.mapToConversation("AgentA")
-convGDB = varmap.mapToConversation("GDB")
-processGDB = varmap.mapToMutable("ProcessGDB", None)
+convA = varmap.map_to_conversation("AgentA")
+convGDB = varmap.map_to_conversation("GDB")
+processGDB = varmap.map_to_mutable("ProcessGDB", None)
 
 store = FileStore()
 read_from_fs(store, testdir_path)
-fileStore = varmap.mapToFileStore("FileStore", store)
+fileStore = varmap.map_to_filestore("FileStore", store)
 
 sysA = prompts.load_prompt("SystemA")
 pA = prompts.load_prompt("PromptA", {fileStore, ovarTest})
 pFix = prompts.load_prompt("PromptFix")
 
 agentA = agentgraph.create_python_agent(run_test, pos=[fileStore], out=[ovarTest])
-scheduler.addTask(agentA.start, varmap)
+scheduler.add_task(agentA.start, varmap)
 
 while True:
     agentPair = \
         agentgraph.create_llm_agent(ovarA, conversation = convA, msg = sysA > pA + convGDB & convA) | \
         agentgraph.create_python_agent(run_gdb, pos=[ovarA, processGDB], out=[ovarGDB, processGDB])
-    scheduler.addTask(agentPair.start)
+    scheduler.add_task(agentPair.start)
     print("LLM: ", ovarA.get_value())
     gdb_output = ovarGDB.get_value()
     if not gdb_output:
@@ -95,7 +95,7 @@ agentPair = \
     agentgraph.create_python_agent(chat_to_fs, pos=[ovarFix, fileStore]) | \
     agentgraph.create_python_agent(run_test, pos=[fileStore], out=[ovarTest])
 
-scheduler.addTask(agentPair.start)
+scheduler.add_task(agentPair.start)
 print("LLM: ", ovarFix.get_value())
 print("Test result: ", ovarTest.get_value())
 

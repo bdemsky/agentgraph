@@ -4,7 +4,7 @@ class JinjaManager:
     def __init__(self, path: str):
         self.path = path
 
-    def runTemplate(self, name: str, data: dict) -> str:
+    def run_template(self, name: str, data: dict) -> str:
         if data == None:
             data = dict()
  

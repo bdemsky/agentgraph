@@ -25,7 +25,7 @@ class Prompt(MsgSeq):
                 data[name] = varsMap[val]
             else:
                 data[name] = val
-        val = self.prompts.runTemplate(self.name, data)
+        val = self.prompts.run_template(self.name, data)
         return val
 
     def _get_read_set(self) -> set:

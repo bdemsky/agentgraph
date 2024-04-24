@@ -38,7 +38,7 @@ class MsgSeq:
         return o.summarize()
     
     def summarize(self):
-        if self.isExchange():
+        if self.is_exchange():
             raise RuntimeError(f"Can only summarize a message sequences.\n")
         return MsgSummary(self)
 
@@ -54,7 +54,7 @@ class MsgSeq:
     def __getitem__(self, slicerange):
         return MsgSlice(self, slicerange)
     
-    def isExchange(self) -> bool:
+    def is_exchange(self) -> bool:
         return False
 
     def _is_single_msg(self) -> bool:
@@ -74,7 +74,7 @@ def _helper_get_read_set(msgseq) -> set:
     else:
         return set()
     
-def helperExec(msgseq, varsMap: dict):
+def helper_exec(msgseq, varsMap: dict):
     if isinstance(msgseq, str):
         return msgseq
     else:
@@ -89,12 +89,12 @@ class MsgSlice(MsgSeq):
         return _helper_get_read_set(self._left)
 
     def exec(self, varsMap:dict):
-        l = helperExec(self._left, varsMap)
+        l = helper_exec(self._left, varsMap)
         if not isinstance(l, list):
             raise RuntimeError("Slicing applied to non list")
         return l[self._range]
     
-def doExtendList(vleft: list, vright:str):
+def do_extend_list(vleft: list, vright:str):
     if not isinstance(vleft, list):
         raise RuntimeError("Left side of prompt is not list")
     if vleft[-1]["role"] == "user":
@@ -113,15 +113,15 @@ class MsgChooser(MsgSeq):
         return _helper_get_read_set(self._left).union(_helper_get_read_set(self._right))
 
     def exec(self, varsMap: dict):
-        vleft = helperExec(self._left, varsMap)
+        vleft = helper_exec(self._left, varsMap)
         if not isinstance(self._right, MsgChoice):
             raise RuntimeError("RHS of a > is not a choice")
 
         if isinstance(vleft, list):
             if len(vleft) == 0:
-                return helperExec(self._right._right, varsMap)
+                return helper_exec(self._right._right, varsMap)
             else:
-                return helperExec(self._right._left, varsMap)
+                return helper_exec(self._right._left, varsMap)
         else:
             raise RuntimeError("LHS of a > is not a list")
     
@@ -146,14 +146,14 @@ class MsgConcat(MsgSeq):
         return _helper_get_read_set(self._left).union(_helper_get_read_set(self._right))
 
     def exec(self, varsMap: dict):
-        vleft = helperExec(self._left, varsMap)
-        vright = helperExec(self._right, varsMap)
+        vleft = helper_exec(self._left, varsMap)
+        vright = helper_exec(self._right, varsMap)
         if isinstance(vright, str):
-            doExtendList(vleft, vright)
+            do_extend_list(vleft, vright)
             return vleft
         elif isinstance(vright, list):
             for msg in vright:
-                doExtendList(vleft, msg["content"])
+                do_extend_list(vleft, msg["content"])
             return vleft
         else:
             raise RuntimeError("RHS is neither string or list")
@@ -168,8 +168,8 @@ class MsgAdd(MsgSeq):
         return _helper_get_read_set(self._left).union(_helper_get_read_set(self._right))
 
     def exec(self, varsMap: dict):
-        vleft = helperExec(self._left, varsMap)
-        vright = helperExec(self._right, varsMap)
+        vleft = helper_exec(self._left, varsMap)
+        vright = helper_exec(self._right, varsMap)
         if isinstance(vright, str) and isinstance(vleft, str):
             return vleft + vright
         else:
@@ -184,7 +184,7 @@ class MsgSummary(MsgSeq):
         return _helper_get_read_set(self.msg)
 
     def exec(self, varsMap: dict):
-        val = helperExec(self.msg, varsMap)
+        val = helper_exec(self.msg, varsMap)
         response = ""
         for msg in val:
             if msg["role"] == "assistant":
@@ -202,20 +202,20 @@ class MsgSystem(MsgSeq):
     def _get_read_set(self) -> set:
         return _helper_get_read_set(self._systemMsg).union(_helper_get_read_set(self._conv))
         
-    def isExchange(self) -> bool:
+    def is_exchange(self) -> bool:
         return True
 
     def exec(self, varsMap: dict):
-        vright = helperExec(self._conv, varsMap)
-        systemmsg = helperExec(self._systemMsg, varsMap)
+        vright = helper_exec(self._conv, varsMap)
+        systemmsg = helper_exec(self._systemMsg, varsMap)
         vleft = [{"role": "system", "content": systemmsg}]
 
         if isinstance(vright, str):
-            doExtendList(vleft, vright)
+            do_extend_list(vleft, vright)
             return vleft
         elif isinstance(vright, list):
             for msg in vright:
-                doExtendList(vleft, msg["content"])
+                do_extend_list(vleft, msg["content"])
             return vleft
         else:
             raise RuntimeError("RHS is neither string or list")

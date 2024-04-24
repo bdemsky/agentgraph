@@ -35,15 +35,15 @@ ovarA = agentgraph.Var("OutA")
 gdb_out = agentgraph.Var("gdb_out")
 pgdb = prompts.load_prompt("PromptGDB", {gdb_out})
 varmap = agentgraph.VarMap()
-convA = varmap.mapToConversation("AgentA")
-convGDB = varmap.mapToConversation("GDB")
+convA = varmap.map_to_conversation("AgentA")
+convGDB = varmap.map_to_conversation("GDB")
 
 while True:
     agentA = agentgraph.create_llm_agent(ovarA, conversation = convA, msg = sysA > pA + convGDB & convA)
-    scheduler.addTask(agentA.start, varmap)
+    scheduler.add_task(agentA.start, varmap)
     varMap = None
     agentGDB = agentgraph.create_python_agent(run_gdb, pos=[ovarA], out=[gdb_out])
-    scheduler.addTask(agentGDB.start)
+    scheduler.add_task(agentGDB.start)
     gdb_output = gdb_out.get_value()
     if not gdb_output:
         break

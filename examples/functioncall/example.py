@@ -33,7 +33,7 @@ testdir_path = cur_dir + "/testdirectory/"
 call, call2 = agentgraph.Var("CallA"), agentgraph.Var("CallA2")
 
 varmap = agentgraph.VarMap()
-convA = varmap.mapToConversation("AgentA")
+convA = varmap.map_to_conversation("AgentA")
 
 pA, pA2 = prompts.load_prompt("PromptA"), prompts.load_prompt("PromptA2")
 sysA = prompts.load_prompt("SystemA")
