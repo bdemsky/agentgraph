@@ -26,19 +26,21 @@ import agentgraph
 
 ### Key Concepts
 
-AgentGraph uses nested task-based parallelism model.  Child tasks are
+AgentGraph uses a nested task-based parallelism model.  Tasks are
 invoked by either the parent thread or another task.  The invoking
 thread or task does not wait for the child task to execute.  A task
 executes when all of its inputs are available.
 
 AgentGraph programs execute in parallel, but have sequential
 semantics.  The parallel execution is guaranteed to produce the same
-results as a sequential execution.
+results as the sequential execution in which task are executed
+immediately upon invocation (modulo ordering of screen I/O and other
+effects that are not tracked by AgentGraph).
 
-Variables represent the return values of tasks.  They function
+Variable objects represent the return values of tasks.  They function
 effectively as futures.  But they can be passed into later tasks, and
-those later tasks will wait until the task that produced the variable
-finishes execution.
+those later tasks will wait until the task that produced the Variable
+object finishes execution.
 
 ### Model
 
@@ -68,7 +70,31 @@ estimated need for a context window to reduce costs.
   version of the model.  Set to false if you want to use an Azure
   served model.
 
-### Prompts
+### Query Generation
+
+AgentGraph supports combining multiple messages into a chat
+history. Messages can come from a string, a prompt, or a variable
+reference.  Messages can be concatenated using the + operator.
+
+A system message and an initial prompt message can be combined to
+create a sequence of messages using the ** operator, e.g., systemmsg
+** promptmsg.  A message can be appended to a sequence of messages
+using the & operator, e.g., sequence & newmsg.  The appended message
+will be assigned to opposite type (user vs assistant) of the previous
+message in the sequence.
+
+A sequence of messages can also come from a conversation object (or
+variable reference to a conversation object).
+
+For conversations, we have a special initializer syntax: seq >
+seqincrement | seqbase, that evaluates to seqincrement is seq is not
+empty and seqbase if seq is empty.
+
+Python slice operators ([start:end]) can be applied to sequences to
+remove parts of the sequence.
+
+
+#### Prompts
 
 To create a prompt object using the specified directory:
 
@@ -87,6 +113,29 @@ prompts.load_prompt(filename, dictionary)
 - dictionary - a map of names to either a variable or an object that
   should be used for generating the prompt.  Variables will be
   resolved when the prompt is generated.
+
+
+
+
+#### Conversation Objects
+
+Conversation objects can save a conversation.
+
+To create a Conversation mutable object.
+
+```
+conversation = agentgraph.Conversation()
+```
+
+
+### Query Memoization
+
+AgentGraph supports query memoization to allow rapid debug cycles,
+reproducibility of problematic executions, and regression test suites.
+This is controlled by the config operation
+agentgraph.config.DEBUG_PATH.  If this is set to None, memoization is
+turned off.  Otherwise, memoized query results are stored in the
+specified path.
 
 ### Tools
 
@@ -205,16 +254,21 @@ It is invoked by:
 scheduler.shutdown()
 ```
 
-### Query Generation
+### Sharing Mutable Objects Between Tasks
+
+Immutable objects can be safely passed to and returned from tasks.
+Mutable object must explicitly inherit from a special Mutable class.
+All accessor methods of Mutable objects must first call either
+wait_for_access (for methods that perform read or write accesses) or
+wait_for_read_access (for methods that only perform a read).
+
+Mutable objects can potentially return references to other Mutable
+objects.  If one Mutable object has a reference to another Mutable
+object that it could potentially return, it must call
+set_owning_object to report this reference to AgentGraph.
 
 
 ### Auxilary Data Structures
-
-To create a Conversation mutable object.
-
-```
-conversation = agentgraph.Conversation()
-```
 
 
 To create a variable map, we use:

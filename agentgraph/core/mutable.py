@@ -90,7 +90,7 @@ class Mutable:
         # We own this mutable now
         root._owner = currTask
     
-    def waitForReadAccess(self):
+    def wait_for_read_access(self):
         from agentgraph.exec.scheduler import _get_current_task, _get_current_scheduler
         currTask = _get_current_task()
         root = self._get_root_object()
