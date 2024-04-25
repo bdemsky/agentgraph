@@ -34,6 +34,19 @@ export OPENAI_API_KEY = "fake"
 # Examples
 
 Try out the programs under examples/.
+
+First, you will need to change the model endpoint in the example to
+the one you are using.  Find the line of code that looks like:
+
+```
+model = agentgraph.LLMModel("https://demskygroupgpt4.openai.azure.com/", os.getenv("OPENAI_API_KEY"), "GPT4-8k", "GPT-32K", 34000)
+```
+
+Replace the endpoint https://demskygroupgpt4.openai.azure.com with
+your endpoint.  Replace the model names GPT4-8k and GPT-32K with your
+model names.  If you are using an OpenAI endpoint, set the parameter
+useOpenAI to True (and False for an Azure endpoint).
+
 For example, run
 
 ```
