@@ -307,12 +307,14 @@ Immutable objects can be safely passed to and returned from tasks.
 Mutable object must explicitly inherit from a special Mutable class.
 All accessor methods of Mutable objects must first call either
 wait_for_access (for methods that perform read or write accesses) or
-wait_for_read_access (for methods that only perform a read).
+wait_for_read_access (for methods that only perform a read) from the
+Mutable base class.
 
 Mutable objects can potentially return references to other Mutable
 objects.  If one Mutable object has a reference to another Mutable
 object that it could potentially return, it must call
-set_owning_object to report this reference to AgentGraph.
+set_owning_object method from the Mutable base class to report this
+reference to AgentGraph.
 
 
 ### Auxilary Data Structures
