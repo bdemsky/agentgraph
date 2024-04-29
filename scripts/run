@@ -9,10 +9,10 @@ echo $i
 echo ----------------------------------------------------------
 if test -e examples/results/$i.result
 then
-python -m $i > examples/results/$i.txt
+python3,9 -m $i > examples/results/$i.txt
 diff -u examples/results/$i.txt examples/results/$i.result
 else
-python -m $i | tee examples/results/$i.txt
+python3.9 -m $i | tee examples/results/$i.txt
 fi
 
 done

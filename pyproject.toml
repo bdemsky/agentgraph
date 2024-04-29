@@ -1,3 +1,26 @@
+[project]
+name = "agentgraph_bdemsky"
+version = "0.1"
+authors = [
+  { name="Brian Demsky", email="bdemsky@uci.edu" },
+  { name="Simon Guo", email="yutong4@uci.edu" },
+  { name="Conan Truong", email="cjtruong@uci.edu" },
+]
+description = "A library for task-based parallel programming for Python.  AgentGraph primarily targets AI software that integrates LLM queries (it contains language support generating LLM queries), but can also parallelize tasks that make calls into native code that drops the GIL.  Supports LLM query memoization for fast, cheap debug cycles."
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache License",
+    "Operating System :: OS Independent",
+]
+keywords = ["LLM", "Task parallelism", "Nested task parallelism", "Large Language Models", "Query generation language"]
+
+[project.urls]
+Homepage = "https://github.com/bdemsky/agentgraph"
+Issues = "https://github.com/bdemsky/agentgraph/issues"
+
+
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
