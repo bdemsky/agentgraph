@@ -256,7 +256,7 @@ scheduler.run_python_agent(function, pos, kw, out, vmap)
 - function - function to run for task
 - pos - positional arguments to task
 - kw - keyword based arguments to task
-- out - AgentGraph variable objects to store output of task
+- numOut - number of AgentGraph variable objects to store output of task
 - vmap - VarMap object to provide a set of variable object assignment to be performend before the task is started.
 
 ### Nested Parallelism 
@@ -264,19 +264,17 @@ scheduler.run_python_agent(function, pos, kw, out, vmap)
 Functions running as Python task need to take a scheduler object as the first argument. This scheduler can be used to create child tasks within the function 
 ```
 def parent_func(scheduler, ...):
-	scheduler.run_python_agent(child_func, pos, kw, out, vmap)
-
-parent_scheduler.run_python_agent(parent_func, pos, kw, out, vmap)
+	scheduler.run_python_agent(child_func, pos, kw, numOuts, vmap)
 ```
 
-The parent task will wait for all of its child tasks to finish before finishing itself. The level of nesting can be arbitrarily deep, only constrained by the stack size. 
+The parent task will wait for all of its child tasks to finish before finishing itself. The level of nesting can be arbitrarily deep, only constrained by the stack size. If numOut is 1, the function returns a variable object.  If numOut is greater than 1, the function returns a list of variable objects.
 
 ### Running LLM Tasks
 
 To run a LLM task we use:
 
 ```
-scheduler.run_llm_agent(outVar, msg, conversation, model, callVar, tools, formatFunc, pos, kw, vmap)
+outVar = scheduler.run_llm_agent(msg, conversation, model, callVar, tools, formatFunc, pos, kw, vmap)
 ```
 
 - outVar - variable to hold the output string from the LLM model

@@ -31,23 +31,15 @@ def run_gdb(scheduler, cmd):
 
 sysA = prompts.load_prompt("SystemA")
 pA = prompts.load_prompt("PromptA")
-ovarA = agentgraph.Var("OutA")
-gdb_out = agentgraph.Var("gdb_out")
-pgdb = prompts.load_prompt("PromptGDB", {gdb_out})
-varmap = agentgraph.VarMap()
-convA = varmap.map_to_conversation("AgentA")
-convGDB = varmap.map_to_conversation("GDB")
+convA = agentgraph.Conversation()
+gdb_output = None
 
 while True:
-    agentA = agentgraph.create_llm_agent(ovarA, conversation = convA, msg = sysA > pA + convGDB & convA)
-    scheduler.add_task(agentA.start, varmap)
-    varMap = None
-    agentGDB = agentgraph.create_python_agent(run_gdb, pos=[ovarA], out=[gdb_out])
-    scheduler.add_task(agentGDB.start)
+    ovarA = scheduler.run_llm_agent(conversation = convA, msg = convA > convA & gdb_output | sysA ** pA)
+    gdb_out = scheduler.run_python_agent(run_gdb, pos=[ovarA], numOuts=1)
     gdb_output = gdb_out.get_value()
     if not gdb_output:
         break
-    convGDB.get_value().push(gdb_output)
     print(gdb_output, end='')
 
 scheduler.shutdown() 
