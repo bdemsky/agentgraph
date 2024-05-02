@@ -1,6 +1,6 @@
 [project]
 name = "agentgraph"
-version = "0.2"
+version = "0.3"
 authors = [
   { name="Brian Demsky", email="bdemsky@uci.edu" },
   { name="Simon Guo", email="yutong4@uci.edu" },

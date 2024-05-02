@@ -77,6 +77,8 @@ def _helper_get_read_set(msgseq) -> set:
 def helper_exec(msgseq, varsMap: dict):
     if isinstance(msgseq, str):
         return msgseq
+    elif isinstance(msgseq, bytes):
+        return msgseq.decode()
     else:
         return msgseq.exec(varsMap)
     
