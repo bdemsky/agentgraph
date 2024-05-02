@@ -221,7 +221,7 @@ class GraphLLMAgent(GraphNode):
                 for call in toolCalls:
                     if "return" in call:
                         toolMsg = json.dumps({"role": "tool", "tool_call_id": call["id"], "name": call["function"]["name"], "content": call["return"]})
-                        varMap[self.conversation].push(toolMsg)
+                        actConv.push(toolMsg)
 
         if self.callVar is not None:
             outMap[self.callVar] = toolCalls

@@ -93,14 +93,13 @@ class ToolList(Mutable):
         for ref in tool._get_refs():
             ref.set_owning_object(self) 
  
-    def exec(self, varsMap: dict) -> tuple[list[dict], dict[str, Callable]]:
+    def exec(self, varsMap: dict) -> tuple[list[dict], dict[str, Optional[Callable]]]:
         toolsParam = []
         handlers = {}
         for tool in self._tools:
             toolSig = tool.exec(varsMap)
             toolsParam.append(toolSig)
             handler = tool.get_handler()
-            assert handler is not None
             handlers[toolSig["function"]["name"]] = handler 
         return toolsParam, handlers
 

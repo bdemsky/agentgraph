@@ -81,7 +81,7 @@ def helper_exec(msgseq, varsMap: dict):
         return msgseq.decode()
     else:
         return msgseq.exec(varsMap)
-    
+
 class MsgSlice(MsgSeq):
     def __init__(self, left: MsgSeq, slicerange: slice):
         self._left = left

@@ -30,8 +30,6 @@ cur_dir = os.path.dirname(os.path.abspath(__file__))
 prompts = agentgraph.Prompts(cur_dir + "/prompts/")
 testdir_path = cur_dir + "/testdirectory/"
 
-call, call2 = agentgraph.Var("CallA"), agentgraph.Var("CallA2")
-
 varmap = agentgraph.VarMap()
 convA = varmap.map_to_conversation("AgentA")
 
@@ -44,8 +42,8 @@ sysA = prompts.load_prompt("SystemA")
 # alternatively, tools can be constructed from jinja templates
 toolLoader = agentgraph.Prompts(cur_dir + "/tools/")
 ToolsWeather = agentgraph.tools_from_prompts(toolLoader, {"CurWeather": get_current_weather, "NDayWeather": get_n_day_weather_forecast})
-ovar = scheduler.run_llm_agent(conversation=convA, msg=sysA ** pA, callVar=call, tools=ToolsWeather, vmap=varmap) 
-ovar2 = scheduler.run_llm_agent(conversation=convA, msg=convA & pA2, callVar=call2, tools=ToolsWeather)
+ovar, call = scheduler.run_llm_agent(conversation=convA, msg=sysA ** pA, tools=ToolsWeather, vmap=varmap)
+ovar2, call2 = scheduler.run_llm_agent(conversation=convA, msg=convA & pA2, tools=ToolsWeather)
 
 print("LLM: ", ovar.get_value(), "\n", call.get_value())
 print("LLM: ", ovar2.get_value(), "\n", call2.get_value())

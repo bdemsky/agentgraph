@@ -6,7 +6,7 @@ import tiktoken
 import time
 from typing import Optional
 from pathlib import Path
-from openai import AsyncOpenAI, AsyncAzureOpenAI, APITimeoutError
+from openai import AsyncOpenAI, AsyncAzureOpenAI, APITimeoutError, BadRequestError
 
 class ResponseObj:
     def __init__(self):
@@ -235,7 +235,16 @@ class LLMModel:
                 if retries > 3:
                     raise Exception(f"Exceeded 3 retries")
                 print("Retrying due to failure from openai\n")
-            
+            except BadRequestError as e:
+                retries+=1
+                print("Bad Request Error")
+                print(e)
+                if retries > 3:
+                    raise Exception(f"Exceeded 3 retries")
+                if model_to_use == self.largeModel:
+                    raise Exception(f"Already using large model")
+                model_to_use = self.largeModel
+
         completion_tokens = self.num_tokens_from_messages([responseobj.to_dict()], self.tokenizer_str)
 
         if self.stream:
