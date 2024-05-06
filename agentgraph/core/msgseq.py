@@ -101,9 +101,14 @@ def do_extend_list(vleft: list, vright:str):
         raise RuntimeError("Left side of prompt is not list")
     if vleft[-1]["role"] == "user":
         newRole = "assistant"
-    else:
+    elif vleft[-1]["role"] == "assistant":
         newRole = "user"
-    vleft.append({"role": newRole, "content": vright})    
+    else:
+        raise RuntimeError("Unhandled role:" + vleft[-1])
+    vleft.append({"role": newRole, "content": vright})
+
+def do_extend_list_with_dict(vleft: list, vright:dict):
+    vleft.append(vright)
 
 class MsgChooser(MsgSeq):
     def __init__(self, left: MsgSeq, right: MsgSeq):
@@ -126,7 +131,30 @@ class MsgChooser(MsgSeq):
                 return helper_exec(self._right._left, varsMap)
         else:
             raise RuntimeError("LHS of a > is not a list")
-    
+
+class MsgTool(MsgSeq):
+    def __init__(self, tool_call_id, function_name, function_response):
+        super().__init__()
+        self._tool_call_id = tool_call_id
+        self._function_name = function_name
+        self._function_response = function_response
+
+    def _get_read_set(self) -> set:
+        return _helper_get_read_set(self._tool_call_id).union(_helper_get_read_set(self._function_name)).union(_helper_get_read_set(self._function_response))
+
+    def exec(self, varsMap: dict):
+        tool_call_id = helper_exec(self._tool_call_id, varsMap)
+        function_name = helper_exec(self._function_name, varsMap)
+        function_response = helper_exec(self._function_response, varsMap)
+
+        return {"tool_call_id": tool_call_id, "role": "tool", "name": function_name, "content": function_response}
+
+def create_tool_response(tool_call_id, function_name, function_response):
+    """Create response from tool. Each item can either be a str or a
+    Var that will later resolve to a string.
+    """
+
+    return MsgTool(tool_call_id, function_name, function_response)
     
 class MsgChoice(MsgSeq):
     def __init__(self, left: MsgSeq, right: MsgSeq):
@@ -156,6 +184,9 @@ class MsgConcat(MsgSeq):
         elif isinstance(vright, list):
             for msg in vright:
                 do_extend_list(vleft, msg["content"])
+            return vleft
+        elif isinstance(vright, dict):
+            do_extend_list_with_dict(vleft, vright)
             return vleft
         else:
             raise RuntimeError("RHS is neither string or list")
