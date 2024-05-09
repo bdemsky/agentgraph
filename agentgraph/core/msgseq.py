@@ -103,8 +103,10 @@ def do_extend_list(vleft: list, vright:str):
         newRole = "assistant"
     elif vleft[-1]["role"] == "assistant":
         newRole = "user"
+    elif vleft[-1]["role"] == "system":
+        newRole = "user"
     else:
-        raise RuntimeError("Unhandled role:" + vleft[-1])
+        raise RuntimeError("Unhandled role:" + vleft[-1]["role"])
     vleft.append({"role": newRole, "content": vright})
 
 def do_extend_list_with_dict(vleft: list, vright:dict):
