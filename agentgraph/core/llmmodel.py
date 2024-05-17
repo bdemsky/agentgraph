@@ -180,14 +180,24 @@ class LLMModel:
         for message in messages:
             num_tokens += tokens_per_message
             for key, value in message.items():
-                num_tokens += len(encoding.encode(value))
-                if key == "name":
-                    num_tokens += tokens_per_name
-                    num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
+                if value is not None:
+                    if type(value) == str:
+                        value_str = value
+                    else:
+                        value_str = str(value)
+                    num_tokens += len(encoding.encode(value_str))
+                    if key == "name":
+                        num_tokens += tokens_per_name
+                        num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
         return num_tokens
 
-    async def send_data(self, message_to_send, tools):
-        request_params = {"messages": message_to_send}
+    async def send_data(self, message_to_send, tools, llmopts: Optional[dict]):
+        if llmopts is not None:
+            request_params = llmopts
+        else:
+            request_params = dict()
+            
+        request_params["messages"] = message_to_send
         if tools:
             request_params["tools"] = tools
 
@@ -197,7 +207,10 @@ class LLMModel:
 
         totallen = 0
         for msg in message_to_send:
-            totallen += len(msg["content"])
+            if "content" in msg and msg["content"] is not None:
+                totallen += len(msg["content"])
+            if "tool_calls" in msg and msg["tool_calls"] is not None:
+                totallen += len(msg["tool_calls"])
         if tools:
             totallen += num_tokens_from_tools(tools)
 
@@ -211,7 +224,7 @@ class LLMModel:
         self.response_id = my_response_id + 1
 
         prompt_tokens = self.num_tokens_from_messages(message_to_send, self.tokenizer_str)
-            
+
         retries = 0
         while True:
             try:
@@ -254,6 +267,8 @@ class LLMModel:
             completion_tokens = chat_completion.usage.completion_tokens
             prompt_tokens = chat_completion.usage.prompt_tokens
 
+        print("RESP", response)
+            
         if agentgraph.config.TIMING > 0:
             difftime = (endtime - start_time) / 1000000000
             print(f"Response={my_response_id} Time={difftime} Prompt={prompt_tokens} Completion={completion_tokens}")

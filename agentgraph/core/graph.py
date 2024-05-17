@@ -111,7 +111,7 @@ class GraphNested(GraphNode):
 class GraphLLMAgent(GraphNode):
     """Run some action.  This is a LLM Agent."""
     
-    def __init__(self, outVar: Var, conversation: Union[Var, Conversation, None], model: Optional[LLMModel], msg: Optional[MsgSeq], formatFunc, callVar: Optional[Var], tools: Optional[ToolList], pos: Optional[list], kw: Optional[dict]):
+    def __init__(self, outVar: Var, conversation: Union[Var, Conversation, None], model: Optional[LLMModel], msg: Optional[MsgSeq], formatFunc, callVar: Optional[Var], tools: Optional[ToolList], pos: Optional[list], kw: Optional[dict], llmopts: Optional[dict]):
         super().__init__()
         self.outVar = outVar
         self.callVar = callVar
@@ -122,6 +122,7 @@ class GraphLLMAgent(GraphNode):
         self.tools = tools
         self.pos = pos if pos is not None else []
         self.kw = kw if kw is not None else {}
+        self.llmopts = llmopts
         
     def _get_read_set(self) -> list:
         l = list(self.kw.values())
@@ -191,7 +192,7 @@ class GraphLLMAgent(GraphNode):
             from agentgraph.exec.scheduler import _get_current_scheduler
             model = _get_current_scheduler().get_default_model()
         
-        message = await model.send_data(inConv, toolsParam)
+        message = await model.send_data(inConv, toolsParam, self.llmopts)
         content = message["content"] if "content" in message else None
         toolCalls = message["tool_calls"] if "tool_calls" in message else None
 
@@ -207,7 +208,7 @@ class GraphLLMAgent(GraphNode):
 
             #Make the output conversation match the full discussion
             actConv.load_conv(inConv)
-            actConv.push(outStr)
+            actConv.push_item(message)
 
         # Put result in output map
         outMap = dict()
@@ -478,7 +479,7 @@ class VarMap:
         self._varMap[var] = val
         return var
     
-def create_llm_agent(outVar: Var, msg: Optional[MsgSeq] = None, conversation: Union[Conversation, Var, None] = None, callVar: Optional[Var] = None, tools: Optional[ToolList] = None, formatFunc = None, pos: Optional[list] = None, kw: Optional[dict] = None, model: Optional[LLMModel] = None) -> GraphPair:
+def create_llm_agent(outVar: Var, msg: Optional[MsgSeq] = None, conversation: Union[Conversation, Var, None] = None, callVar: Optional[Var] = None, tools: Optional[ToolList] = None, formatFunc = None, pos: Optional[list] = None, kw: Optional[dict] = None, llmopts: Optional[dict] = None, model: Optional[LLMModel] = None) -> GraphPair:
     """Creates a LLM agent task.
 
     Arguments:
@@ -497,7 +498,7 @@ def create_llm_agent(outVar: Var, msg: Optional[MsgSeq] = None, conversation: Un
     assert msg is not None or formatFunc is not None, "Either msg or formatFunc must be specified."
     assert msg is None or formatFunc is None, "Cannot specify both msg and formatFunc."
 
-    llmAgent = GraphLLMAgent(outVar, conversation, model, msg, formatFunc, callVar, tools, pos, kw)
+    llmAgent = GraphLLMAgent(outVar, conversation, model, msg, formatFunc, callVar, tools, pos, kw, llmopts)
     return GraphPair(llmAgent, llmAgent)
 
 def create_python_agent(pythonFunc, pos: Optional[list] = None, kw: Optional[dict] = None, out: Optional[list] = None) -> GraphPair:

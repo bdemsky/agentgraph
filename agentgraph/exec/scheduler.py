@@ -762,11 +762,11 @@ class Scheduler:
             return out[0]
         return out
         
-    def run_llm_agent(self, msg: Optional[MsgSeq] = None, conversation: Union[Var, None, 'agentgraph.core.conversation.Conversation'] = None, tools: Optional['agentgraph.core.tools.ToolList'] = None, formatFunc = None, pos: Optional[list] = None, kw: Optional[dict] = None, model: Optional[LLMModel] = None, vmap: Optional[VarMap] = None):
+    def run_llm_agent(self, msg: Optional[MsgSeq] = None, conversation: Union[Var, None, 'agentgraph.core.conversation.Conversation'] = None, tools: Optional['agentgraph.core.tools.ToolList'] = None, formatFunc = None, pos: Optional[list] = None, kw: Optional[dict] = None, llmopts: Optional[dict] = None, model: Optional[LLMModel] = None, vmap: Optional[VarMap] = None):
         outVar = Var()
         if tools is not None:
             callVar = Var()
-        self.add_task(create_llm_agent(outVar, msg, conversation, callVar, tools, formatFunc, pos, kw, model).start, vmap)
+        self.add_task(create_llm_agent(outVar, msg, conversation, callVar, tools, formatFunc, pos, kw, llmopts, model).start, vmap)
         if tools is not None:
             return outVar, callVar
         else:
