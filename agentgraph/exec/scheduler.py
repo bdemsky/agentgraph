@@ -766,6 +766,8 @@ class Scheduler:
         outVar = Var()
         if tools is not None:
             callVar = Var()
+        else:
+            callVar = None
         self.add_task(create_llm_agent(outVar, msg, conversation, callVar, tools, formatFunc, pos, kw, llmopts, model).start, vmap)
         if tools is not None:
             return outVar, callVar
